@@ -25,7 +25,7 @@ const formatDate = (iso: string) => {
   }
 }
 
-const noop = () => {}
+// const noop = () => {}
 
 const ProjectList = ({
   projects,
