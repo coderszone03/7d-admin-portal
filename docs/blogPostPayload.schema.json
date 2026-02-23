@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Admin Blog Post Payload",
+  "type": "object",
+  "description": "Payload sent from the admin portal when publishing a blog post.",
+  "required": [
+    "id",
+    "title",
+    "slug",
+    "excerpt",
+    "coverImageUrl",
+    "authorName",
+    "authorRole",
+    "readTimeMinutes",
+    "tags",
+    "sections",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Client-generated unique identifier for the post. The backend may ignore this and generate its own ID."
+    },
+    "title": {
+      "type": "string",
+      "description": "Human-readable title of the blog post."
+    },
+    "slug": {
+      "type": "string",
+      "description": "URL-friendly identifier for the post (kebab-case)."
+    },
+    "excerpt": {
+      "type": "string",
+      "description": "Short teaser used in lists and cards."
+    },
+    "coverImageUrl": {
+      "type": "string",
+      "description": "Cover image for the post. In the admin UI this is a data URL (base64) or a regular URL."
+    },
+    "authorName": {
+      "type": "string",
+      "description": "Display name of the author."
+    },
+    "authorRole": {
+      "type": "string",
+      "description": "Short label describing the author's role, e.g. \"Digital Marketing Expert\"."
+    },
+    "readTimeMinutes": {
+      "type": "number",
+      "description": "Estimated read time in minutes, calculated from content length."
+    },
+    "tags": {
+      "type": "array",
+      "description": "Flat list of tag strings.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "sections": {
+      "type": "array",
+      "description": "Ordered content blocks that make up the body of the post.",
+      "items": {
+        "type": "object",
+        "required": ["id", "type"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Client-generated unique identifier for this block."
+          },
+          "type": {
+            "type": "string",
+            "enum": ["heading", "paragraph", "list", "image"],
+            "description": "Block kind used to drive rendering on the frontend."
+          },
+          "heading": {
+            "type": "string",
+            "description": "Text for heading blocks. Optional for other block types."
+          },
+          "text": {
+            "type": "string",
+            "description": "Body text for paragraph and list blocks. For lists, each line break represents a separate list item."
+          },
+          "ordered": {
+            "type": "boolean",
+            "description": "Only for list blocks. true = numbered list (ol), false = bullet list (ul)."
+          },
+          "imageUrl": {
+            "type": "string",
+            "description": "Only for image blocks. In the admin UI this is a data URL (base64) or regular URL."
+          },
+          "alt": {
+            "type": "string",
+            "description": "Alternative text for image blocks for accessibility."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when the post was first created in the admin panel."
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when the post was last updated."
+    }
+  },
+  "additionalProperties": false
+}
+
