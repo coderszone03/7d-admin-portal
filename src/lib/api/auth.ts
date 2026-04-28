@@ -10,7 +10,7 @@ export type LoginResponse = {
 }
 
 export const login = async (payload: LoginRequest): Promise<LoginResponse> => {
-  const response = await client.post<LoginResponse>('/admin/login', payload)
+  const response = await client.post<LoginResponse>('/api/admin/login', payload)
   return response.data
 }
 

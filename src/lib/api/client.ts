@@ -2,10 +2,20 @@ import axios from 'axios'
 import { getCookie } from '../utils/cookies'
 import { AUTH_COOKIE_KEY } from '../../features/auth/constants'
 
+const resolveBaseURL = () => {
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL as string
+  }
+  // In dev, hit the Vite proxy so the browser sees same-origin and CORS is bypassed.
+  if (import.meta.env.DEV) {
+    return ''
+  }
+  return 'https://7ddesign-backend.maverickz.online'
+}
+
 const client = axios.create({
-  baseURL:
-    import.meta.env.VITE_API_BASE_URL ?? 'https://7ddesign-backend.maverickz.online/api',
-  timeout: 10000,
+  baseURL: resolveBaseURL(),
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },
