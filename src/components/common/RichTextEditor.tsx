@@ -52,40 +52,184 @@ const Toolbar = ({ editor }: { editor: Editor | null }) => {
     setImageInputModalOpen(false);
   };
 
-  const buttonClass = 'p-2 text-sm font-medium text-text-secondary hover:bg-surface-muted rounded-md'
-  const activeClass = 'bg-accent/20 text-accent'
+  const btn =
+    'inline-flex h-8 min-w-8 items-center justify-center rounded-md px-1.5 text-[12px] font-medium text-text-secondary transition hover:bg-surface-muted hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent'
+  const activeCls = 'bg-accent/15 text-accent hover:bg-accent/20 hover:text-accent'
+  const divider = <span aria-hidden className="mx-1 h-5 w-px bg-border/60" />
+
+  const Icon = ({
+    path,
+    label,
+  }: {
+    path: React.ReactNode
+    label: string
+  }) => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4"
+      aria-label={label}
+    >
+      {path}
+    </svg>
+  )
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-1 rounded-t-lg border-b border-border/60 bg-surface p-2">
-        <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={`${buttonClass} ${editor.isActive('bold') ? activeClass : ''}`}>Bold</button>
-        <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={`${buttonClass} ${editor.isActive('italic') ? activeClass : ''}`}>Italic</button>
-        <button type="button" onClick={() => editor.chain().focus().toggleStrike().run()} className={`${buttonClass} ${editor.isActive('strike') ? activeClass : ''}`}>Strike</button>
-        <button type="button" onClick={() => editor.chain().focus().toggleCode().run()} className={`${buttonClass} ${editor.isActive('code') ? activeClass : ''}`}>Code</button>
-        <button type="button" onClick={() => editor.chain().focus().toggleBlockquote().run()} className={`${buttonClass} ${editor.isActive('blockquote') ? activeClass : ''}`}>Quote</button>
+      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-0.5 rounded-t-2xl border-b border-border/60 bg-surface/95 px-2 py-1.5 backdrop-blur">
+        {/* Inline formatting */}
+        <button
+          type="button"
+          title="Bold"
+          aria-label="Bold"
+          onClick={() => editor.chain().focus().toggleBold().run()}
+          className={`${btn} ${editor.isActive('bold') ? activeCls : ''}`}
+        >
+          <Icon label="Bold" path={<path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z" />} />
+        </button>
+        <button
+          type="button"
+          title="Italic"
+          aria-label="Italic"
+          onClick={() => editor.chain().focus().toggleItalic().run()}
+          className={`${btn} ${editor.isActive('italic') ? activeCls : ''}`}
+        >
+          <Icon label="Italic" path={<><line x1="19" y1="4" x2="10" y2="4" /><line x1="14" y1="20" x2="5" y2="20" /><line x1="15" y1="4" x2="9" y2="20" /></>} />
+        </button>
+        <button
+          type="button"
+          title="Strikethrough"
+          aria-label="Strikethrough"
+          onClick={() => editor.chain().focus().toggleStrike().run()}
+          className={`${btn} ${editor.isActive('strike') ? activeCls : ''}`}
+        >
+          <Icon label="Strike" path={<><path d="M4 12h16" /><path d="M17 7.5A5 5 0 0 0 12 5c-2 0-4 .8-4 3 0 1.5 1 2.3 3 3" /><path d="M9 16.5A4.5 4.5 0 0 0 12 18c2.5 0 4-1 4-3 0-.8-.3-1.5-1-2" /></>} />
+        </button>
+        <button
+          type="button"
+          title="Inline code"
+          aria-label="Code"
+          onClick={() => editor.chain().focus().toggleCode().run()}
+          className={`${btn} ${editor.isActive('code') ? activeCls : ''}`}
+        >
+          <Icon label="Code" path={<><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></>} />
+        </button>
 
-        {/* Heading buttons */}
-        <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} className={`${buttonClass} ${editor.isActive('heading', { level: 1 }) ? activeClass : ''}`}>H1</button>
-        <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={`${buttonClass} ${editor.isActive('heading', { level: 2 }) ? activeClass : ''}`}>H2</button>
-        <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} className={`${buttonClass} ${editor.isActive('heading', { level: 3 }) ? activeClass : ''}`}>H3</button>
-        <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()} className={`${buttonClass} ${editor.isActive('heading', { level: 4 }) ? activeClass : ''}`}>H4</button>
-        <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 5 }).run()} className={`${buttonClass} ${editor.isActive('heading', { level: 5 }) ? activeClass : ''}`}>H5</button>
-        <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 6 }).run()} className={`${buttonClass} ${editor.isActive('heading', { level: 6 }) ? activeClass : ''}`}>H6</button>
+        {divider}
 
-        {/* Paragraph button */}
-        <button type="button" onClick={() => editor.chain().focus().setParagraph().run()} className={`${buttonClass} ${editor.isActive('paragraph') ? activeClass : ''}`}>Paragraph</button>
+        {/* Block types */}
+        <button
+          type="button"
+          title="Quote"
+          aria-label="Quote"
+          onClick={() => editor.chain().focus().toggleBlockquote().run()}
+          className={`${btn} ${editor.isActive('blockquote') ? activeCls : ''}`}
+        >
+          <Icon label="Quote" path={<><path d="M7 7h4v4H7a2 2 0 0 0-2 2v4" /><path d="M15 7h4v4h-4a2 2 0 0 0-2 2v4" /></>} />
+        </button>
+        <button
+          type="button"
+          title="Paragraph"
+          aria-label="Paragraph"
+          onClick={() => editor.chain().focus().setParagraph().run()}
+          className={`${btn} ${editor.isActive('paragraph') ? activeCls : ''}`}
+        >
+          <span className="text-[14px] font-semibold leading-none">¶</span>
+        </button>
+        {([1, 2, 3, 4, 5, 6] as const).map((level) => (
+          <button
+            key={level}
+            type="button"
+            title={`Heading ${level}`}
+            aria-label={`Heading ${level}`}
+            onClick={() => editor.chain().focus().toggleHeading({ level }).run()}
+            className={`${btn} ${editor.isActive('heading', { level }) ? activeCls : ''}`}
+          >
+            <span className="text-[11px] font-semibold tracking-tight">H{level}</span>
+          </button>
+        ))}
 
-        {/* List buttons */}
-        <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={`${buttonClass} ${editor.isActive('bulletList') ? activeClass : ''}`}>Bullet List</button>
-        <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`${buttonClass} ${editor.isActive('orderedList') ? activeClass : ''}`}>Ordered List</button>
+        {divider}
 
-        {/* Link and Image buttons */}
-        <button type="button" onClick={handleOpenLinkModal} className={`${buttonClass} ${editor.isActive('link') ? activeClass : ''}`}>Add Link</button>
-        <button type="button" onClick={handleOpenImageInputModal} className={buttonClass}>Add Image</button>
+        {/* Lists */}
+        <button
+          type="button"
+          title="Bulleted list"
+          aria-label="Bulleted list"
+          onClick={() => editor.chain().focus().toggleBulletList().run()}
+          className={`${btn} ${editor.isActive('bulletList') ? activeCls : ''}`}
+        >
+          <Icon label="Bulleted list" path={<><line x1="9" y1="6" x2="20" y2="6" /><line x1="9" y1="12" x2="20" y2="12" /><line x1="9" y1="18" x2="20" y2="18" /><circle cx="5" cy="6" r="1" /><circle cx="5" cy="12" r="1" /><circle cx="5" cy="18" r="1" /></>} />
+        </button>
+        <button
+          type="button"
+          title="Numbered list"
+          aria-label="Numbered list"
+          onClick={() => editor.chain().focus().toggleOrderedList().run()}
+          className={`${btn} ${editor.isActive('orderedList') ? activeCls : ''}`}
+        >
+          <Icon label="Numbered list" path={<><line x1="10" y1="6" x2="21" y2="6" /><line x1="10" y1="12" x2="21" y2="12" /><line x1="10" y1="18" x2="21" y2="18" /><path d="M4 6h1v4" /><path d="M4 10h2" /><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1" /></>} />
+        </button>
 
-        <button type="button" onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} className={buttonClass}>Undo</button>
-        <button type="button" onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} className={buttonClass}>Redo</button>
-        <button type="button" onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()} className={buttonClass}>Clear Formatting</button>
+        {divider}
+
+        {/* Insertables */}
+        <button
+          type="button"
+          title="Add link"
+          aria-label="Add link"
+          onClick={handleOpenLinkModal}
+          className={`${btn} ${editor.isActive('link') ? activeCls : ''}`}
+        >
+          <Icon label="Link" path={<><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1" /><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" /></>} />
+        </button>
+        <button
+          type="button"
+          title="Add image"
+          aria-label="Add image"
+          onClick={handleOpenImageInputModal}
+          className={btn}
+        >
+          <Icon label="Image" path={<><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></>} />
+        </button>
+
+        {divider}
+
+        {/* History & clear */}
+        <button
+          type="button"
+          title="Undo"
+          aria-label="Undo"
+          onClick={() => editor.chain().focus().undo().run()}
+          disabled={!editor.can().undo()}
+          className={btn}
+        >
+          <Icon label="Undo" path={<><polyline points="9 14 4 9 9 4" /><path d="M20 20v-7a4 4 0 0 0-4-4H4" /></>} />
+        </button>
+        <button
+          type="button"
+          title="Redo"
+          aria-label="Redo"
+          onClick={() => editor.chain().focus().redo().run()}
+          disabled={!editor.can().redo()}
+          className={btn}
+        >
+          <Icon label="Redo" path={<><polyline points="15 14 20 9 15 4" /><path d="M4 20v-7a4 4 0 0 1 4-4h12" /></>} />
+        </button>
+        <button
+          type="button"
+          title="Clear formatting"
+          aria-label="Clear formatting"
+          onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}
+          className={btn}
+        >
+          <Icon label="Clear formatting" path={<><path d="M6 4v6a6 6 0 0 0 11 3.3" /><path d="M14 4h6" /><line x1="4" y1="20" x2="20" y2="4" /></>} />
+        </button>
       </div>
 
       <PromptModal

@@ -205,7 +205,11 @@ const ProjectList = ({
       </ul>
 
       {activeProject ? (
-        <Modal isOpen={Boolean(activeProject)} onClose={handleCloseDetails} className="max-w-3xl">
+        <Modal
+          isOpen={Boolean(activeProject)}
+          onClose={handleCloseDetails}
+          className="max-h-[90vh] max-w-5xl overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
           <div className="space-y-5">
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -274,11 +278,9 @@ const ProjectList = ({
                     alt={`${activeProject.title} thumbnail`}
                     className="h-56 w-full object-cover"
                     onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.onerror = null;
-                      target.style.display = 'none';
-                      // Optionally, show a fallback div or message here
-                      // e.g., target.parentElement.innerHTML = '<div class="flex items-center justify-center h-full text-text-muted">Image not available</div>';
+                      const target = e.target as HTMLImageElement
+                      target.onerror = null
+                      target.style.display = 'none'
                     }}
                   />
                 </div>
@@ -287,11 +289,11 @@ const ProjectList = ({
                     <img
                       src={activeProject.clientMockupUrl}
                       alt={`${activeProject.title} client mockup`}
-                      className="h-40 w-full object-cover" // Consider adding overflow-hidden to the parent div if this image can be very tall
+                      className="h-40 w-full object-cover"
                       onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.onerror = null;
-                        target.style.display = 'none';
+                        const target = e.target as HTMLImageElement
+                        target.onerror = null
+                        target.style.display = 'none'
                       }}
                     />
                   </div>
@@ -351,6 +353,213 @@ const ProjectList = ({
                 ) : null}
               </div>
             </div>
+
+            {/* Brand identity (colors, badge, brand title/description) */}
+            {(activeProject.primaryColor ||
+              activeProject.secondaryColor ||
+              activeProject.accentColor ||
+              activeProject.badgeName ||
+              activeProject.brandTitle ||
+              activeProject.brandDescription) ? (
+              <section className="space-y-3 rounded-2xl border border-border/60 bg-surface-muted/40 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
+                  Brand identity
+                </p>
+                <div className="grid gap-4 md:grid-cols-[0.9fr_1.6fr]">
+                  <div className="space-y-3">
+                    {(activeProject.primaryColor ||
+                      activeProject.secondaryColor ||
+                      activeProject.accentColor) ? (
+                      <div className="space-y-2">
+                        <div className="flex overflow-hidden rounded-xl border border-border/60">
+                          {activeProject.primaryColor ? (
+                            <div
+                              className="h-12 flex-1"
+                              style={{ backgroundColor: activeProject.primaryColor }}
+                              title={`Primary ${activeProject.primaryColor}`}
+                            />
+                          ) : null}
+                          {activeProject.secondaryColor ? (
+                            <div
+                              className="h-12 flex-1"
+                              style={{ backgroundColor: activeProject.secondaryColor }}
+                              title={`Secondary ${activeProject.secondaryColor}`}
+                            />
+                          ) : null}
+                          {activeProject.accentColor ? (
+                            <div
+                              className="h-12 flex-1"
+                              style={{ backgroundColor: activeProject.accentColor }}
+                              title={`Accent ${activeProject.accentColor}`}
+                            />
+                          ) : null}
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                          <span className="truncate">{activeProject.primaryColor || '—'}</span>
+                          <span className="truncate">{activeProject.secondaryColor || '—'}</span>
+                          <span className="truncate">{activeProject.accentColor || '—'}</span>
+                        </div>
+                      </div>
+                    ) : null}
+                    {activeProject.badgeName ? (
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-muted">
+                          Badge
+                        </p>
+                        <p className="mt-0.5 text-sm text-text-secondary">
+                          {activeProject.badgeName}
+                        </p>
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="space-y-2 text-sm text-text-secondary">
+                    {activeProject.brandTitle ? (
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-muted">
+                          Brand title
+                        </p>
+                        <p className="mt-0.5 text-sm font-medium">{activeProject.brandTitle}</p>
+                      </div>
+                    ) : null}
+                    {activeProject.brandDescription ? (
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-muted">
+                          Brand description
+                        </p>
+                        <p className="mt-0.5 text-sm whitespace-pre-line">
+                          {activeProject.brandDescription}
+                        </p>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </section>
+            ) : null}
+
+            {/* Website card */}
+            {(activeProject.websiteUrl ||
+              activeProject.websiteTitle ||
+              activeProject.websiteDescription) ? (
+              <section className="space-y-2 rounded-2xl border border-border/60 bg-surface-muted/40 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
+                    Website
+                  </p>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] ${
+                      activeProject.isWebsiteEnabled
+                        ? 'bg-success/15 text-success'
+                        : 'bg-surface-muted text-text-muted'
+                    }`}
+                  >
+                    {activeProject.isWebsiteEnabled ? 'Enabled' : 'Disabled'}
+                  </span>
+                </div>
+                {activeProject.websiteTitle ? (
+                  <p className="text-sm font-medium text-text-secondary">
+                    {activeProject.websiteTitle}
+                  </p>
+                ) : null}
+                {activeProject.websiteDescription ? (
+                  <p className="text-sm text-text-secondary whitespace-pre-line">
+                    {activeProject.websiteDescription}
+                  </p>
+                ) : null}
+                {activeProject.websiteUrl ? (
+                  <a
+                    href={activeProject.websiteUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
+                  >
+                    {activeProject.websiteUrl}
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={1.8}
+                      className="h-3 w-3"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M7 17 17 7M9 7h8v8" />
+                    </svg>
+                  </a>
+                ) : null}
+              </section>
+            ) : null}
+
+            {/* Testimonial card */}
+            {(activeProject.testimonialFeedback ||
+              activeProject.testimonialClientName) ? (
+              <section className="space-y-2 rounded-2xl border border-border/60 bg-surface-muted/40 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
+                  Testimonial
+                </p>
+                {activeProject.testimonialFeedback ? (
+                  <p className="text-sm leading-relaxed text-text-secondary">
+                    <span className="mr-1 text-base text-text-muted">“</span>
+                    {activeProject.testimonialFeedback}
+                    <span className="ml-1 text-base text-text-muted">”</span>
+                  </p>
+                ) : null}
+                {(activeProject.testimonialClientName ||
+                  activeProject.testimonialDesignation) ? (
+                  <div className="pt-1">
+                    <p className="text-sm font-medium text-text-secondary">
+                      {activeProject.testimonialClientName || '—'}
+                    </p>
+                    {activeProject.testimonialDesignation ? (
+                      <p className="text-[11px] text-text-muted">
+                        {activeProject.testimonialDesignation}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
+
+            {/* All mockup images */}
+            {(activeProject.brandingMockupUrl ||
+              activeProject.brandingMockupSecondaryUrl ||
+              activeProject.landscapeMockupUrl ||
+              activeProject.websiteMockupUrl ||
+              activeProject.footerMockupUrl) ? (
+              <section className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
+                  Mockups
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {[
+                    { label: 'Branding mockup', src: activeProject.brandingMockupUrl },
+                    { label: 'Branding mockup (secondary)', src: activeProject.brandingMockupSecondaryUrl },
+                    { label: 'Landscape mockup', src: activeProject.landscapeMockupUrl },
+                    { label: 'Website mockup', src: activeProject.websiteMockupUrl },
+                    { label: 'Footer strip', src: activeProject.footerMockupUrl },
+                  ]
+                    .filter((item) => Boolean(item.src))
+                    .map((item) => (
+                      <figure
+                        key={item.label}
+                        className="overflow-hidden rounded-2xl border border-border/60 bg-surface-muted"
+                      >
+                        <img
+                          src={item.src as string}
+                          alt={`${activeProject.title} ${item.label.toLowerCase()}`}
+                          className="h-40 w-full object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement
+                            target.onerror = null
+                            target.style.display = 'none'
+                          }}
+                        />
+                        <figcaption className="px-3 py-1.5 text-[11px] text-text-muted">
+                          {item.label}
+                        </figcaption>
+                      </figure>
+                    ))}
+                </div>
+              </section>
+            ) : null}
 
             <div className="mt-2 flex flex-col gap-2 border-t border-border/60 pt-3 text-xs sm:flex-row sm:items-center sm:justify-between">
               <p className="text-text-muted">

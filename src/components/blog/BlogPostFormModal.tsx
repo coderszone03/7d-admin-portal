@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import Modal from '../common/Modal'
 import type { BlogContentBlock, BlogContentBlockType, BlogPost } from './types'
 import RichTextEditor from '../common/RichTextEditor'
- // You'd create this or use a library
+import type { BlogCategory } from '../../lib/api/blog'
 
 type BlogPostFormModalProps = {
   isOpen: boolean
   mode: 'create' | 'edit'
   initialPost: BlogPost | null
+  categories: BlogCategory[]
   onClose: () => void
   onSubmit: (post: BlogPost) => Promise<void> | void
 }
@@ -16,6 +17,8 @@ type BlogFormValues = {
   title: string
   slug: string
   excerpt: string
+  categoryId: string
+  status: 0 | 1
   authorName: string
   authorRole: string
   readTimeMinutes: number
@@ -24,10 +27,14 @@ type BlogFormValues = {
   blocks: BlogContentBlock[]
 }
 
-type FieldErrorKey = keyof Pick<
-  BlogFormValues,
-  'title' | 'slug' | 'excerpt' | 'authorName' | 'authorRole' | 'coverPreview'
->
+type FieldErrorKey =
+  | 'title'
+  | 'slug'
+  | 'excerpt'
+  | 'categoryId'
+  | 'authorName'
+  | 'authorRole'
+  | 'coverPreview'
 
 const createBlock = (type: BlogContentBlockType): BlogContentBlock => {
   const id = `${type}-${Date.now()}-${Math.random().toString(16).slice(2)}`
@@ -46,6 +53,8 @@ const buildInitialValues = (post: BlogPost | null): BlogFormValues => {
       title: '',
       slug: '',
       excerpt: '',
+      categoryId: '',
+      status: 1,
       authorName: '',
       authorRole: '',
       readTimeMinutes: 2,
@@ -62,6 +71,8 @@ const buildInitialValues = (post: BlogPost | null): BlogFormValues => {
     title: post.title,
     slug: post.slug,
     excerpt: post.excerpt,
+    categoryId: post.categoryId,
+    status: post.status,
     authorName: post.authorName,
     authorRole: post.authorRole,
     readTimeMinutes: post.readTimeMinutes,
@@ -94,7 +105,14 @@ const steps = [
   },
 ]
 
-const BlogPostFormModal = ({ isOpen, mode, initialPost, onClose, onSubmit }: BlogPostFormModalProps) => {
+const BlogPostFormModal = ({
+  isOpen,
+  mode,
+  initialPost,
+  categories,
+  onClose,
+  onSubmit,
+}: BlogPostFormModalProps) => {
   const [values, setValues] = useState<BlogFormValues>(() => buildInitialValues(initialPost))
   const [errors, setErrors] = useState<Partial<Record<FieldErrorKey, string>>>({})
   const [formError, setFormError] = useState<string | null>(null)
@@ -208,6 +226,9 @@ const BlogPostFormModal = ({ isOpen, mode, initialPost, onClose, onSubmit }: Blo
     }
     if (!trimmedSlug) {
       nextErrors.slug = 'Slug is required.'
+    }
+    if (!values.categoryId) {
+      nextErrors.categoryId = 'Select a category.'
     }
     if (!trimmedExcerpt) {
       nextErrors.excerpt = 'Short description is required.'
@@ -330,6 +351,8 @@ const BlogPostFormModal = ({ isOpen, mode, initialPost, onClose, onSubmit }: Blo
 
     const base: BlogPost = {
       id: initialPost?.id ?? `blog-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      categoryId: values.categoryId,
+      status: values.status,
       title: values.title.trim(),
       slug: values.slug.trim(),
       excerpt: values.excerpt.trim(),
@@ -360,7 +383,7 @@ const BlogPostFormModal = ({ isOpen, mode, initialPost, onClose, onSubmit }: Blo
       return (
         <h2
           key={block.id}
-          className="mt-10 text-lg font-semibold tracking-[0.16em] text-white"
+          className="mt-10 text-lg font-semibold tracking-[0.16em] text-text-secondary"
         >
           {block.heading}
         </h2>
@@ -370,37 +393,22 @@ const BlogPostFormModal = ({ isOpen, mode, initialPost, onClose, onSubmit }: Blo
     if (block.type === 'paragraph') {
       if (!block.text) return null;
       return (
-        <p
+        <div
           key={block.id}
-          className="mt-4 max-w-3xl text-sm leading-relaxed text-white/80 whitespace-pre-line"
-          dangerouslySetInnerHTML={{ __html: block.text }} // Render HTML content
-        >
-        </p>
+          className="mt-4 max-w-3xl text-sm leading-relaxed text-text-secondary/80 [&_p]:my-2 [&_a]:text-accent [&_a]:underline [&_strong]:font-semibold [&_em]:italic"
+          dangerouslySetInnerHTML={{ __html: block.text }}
+        />
       )
     }
 
     if (block.type === 'list') {
-      if (!block.text) return null
-      const items = block.text
-        .split('\n')
-        .map((line) => line.trim())
-        .filter(Boolean)
-      if (!items.length) return null;
-
-      const ListTag = (block.ordered ? 'ol' : 'ul') as 'ol' | 'ul'
-
+      if (!block.text) return null;
       return (
-        <ListTag
-          // Note: For rich text lists, you might want the editor to output the full <ol>/<ul> structure
+        <div
           key={block.id}
-          className={`mt-4 ml-5 space-y-1 text-sm text-white/80 ${
-            block.ordered ? 'list-decimal' : 'list-disc'
-          }`}
-        >
-          {items.map((item, index) => (
-            <li key={`${block.id}-${index}`}>{item}</li>
-          ))} 
-        </ListTag>
+          className="mt-4 text-sm text-text-secondary/80 [&_ul]:ml-5 [&_ul]:list-disc [&_ol]:ml-5 [&_ol]:list-decimal [&_li]:my-1 [&_a]:text-accent [&_a]:underline"
+          dangerouslySetInnerHTML={{ __html: block.text }}
+        />
       )
     }
 
@@ -409,7 +417,7 @@ const BlogPostFormModal = ({ isOpen, mode, initialPost, onClose, onSubmit }: Blo
       return (
         <div
           key={block.id}
-          className="mt-6 overflow-hidden rounded-3xl border border-white/10 bg-black/40"
+          className="mt-6 overflow-hidden rounded-3xl border border-border/60 bg-surface-muted/80"
         >
           <img src={block.imageUrl} alt={block.alt ?? ''} className="w-full object-cover" />
         </div>
@@ -528,6 +536,54 @@ const BlogPostFormModal = ({ isOpen, mode, initialPost, onClose, onSubmit }: Blo
                   </div>
                 </div>
 
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-text-muted">Category</label>
+                    <select
+                      value={values.categoryId}
+                      onChange={(event) => handleFieldChange('categoryId', event.target.value)}
+                      className="w-full rounded-2xl border border-border/60 bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+                    >
+                      <option value="">Select a category…</option>
+                      {categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.categoryId ? (
+                      <p className="mt-1 text-xs text-error">{errors.categoryId}</p>
+                    ) : null}
+                  </div>
+                  <div className="space-y-1.5 flex flex-col items-start justify-center mt-1">
+                    <label className="text-xs font-medium text-text-muted">Status</label>
+                    <div className="inline-flex h-9 items-center gap-1 rounded-2xl border border-border/60 bg-background p-1">
+                      <button
+                        type="button"
+                        onClick={() => handleFieldChange('status', 1)}
+                        className={`h-7 rounded-xl px-3 text-xs font-medium transition ${
+                          values.status === 1
+                            ? 'bg-accent text-white'
+                            : 'text-text-muted hover:text-text-secondary'
+                        }`}
+                      >
+                        Published
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleFieldChange('status', 0)}
+                        className={`h-7 rounded-xl px-3 text-xs font-medium transition ${
+                          values.status === 0
+                            ? 'bg-accent text-white'
+                            : 'text-text-muted hover:text-text-secondary'
+                        }`}
+                      >
+                        Draft
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-text-muted">Short description</label>
                   <textarea
@@ -618,13 +674,10 @@ const BlogPostFormModal = ({ isOpen, mode, initialPost, onClose, onSubmit }: Blo
             ) : null}
 
             {activeStepIndex === 1 ? (
-              <div className="space-y-4">
-                <div className="sticky top-0 z-30 flex items-center justify-between  pb-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
-                    Content blocks
-                  </h3>
-                  <div className="inline-flex flex-col items-end gap-1 rounded-2xl border border-border/70 bg-background/95 px-3 py-2 shadow-lg backdrop-blur">
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-text-muted">
+              <div className="relative space-y-4">
+                <aside className="sticky top-0 z-10 float-right ml-4 mb-2 max-w-[420px]">
+                  <div className="rounded-2xl border flex gap-1 items-center justify-start border-border/70 bg-background/95 p-3 shadow-lg backdrop-blur">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-muted">
                       Add block
                     </p>
                     <div className="flex flex-wrap gap-2">
@@ -651,9 +704,13 @@ const BlogPostFormModal = ({ isOpen, mode, initialPost, onClose, onSubmit }: Blo
                       </button>
                     </div>
                   </div>
-                </div>
+                </aside>
 
-                <div className="space-y-3">
+                <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
+                  Content blocks
+                </h3>
+
+                <div className="space-y-3 pt-4">
                   {values.blocks.map((block, index) => (
                     <div
                       key={block.id}
@@ -811,40 +868,40 @@ const BlogPostFormModal = ({ isOpen, mode, initialPost, onClose, onSubmit }: Blo
 
             {activeStepIndex === 2 ? (
               <div className="space-y-5">
-                <div className="rounded-3xl border border-border/60 bg-[#111111] p-6 text-white">
+                <div className="rounded-3xl border border-border/60 bg-surface p-6 text-text-secondary">
                   <div className="flex flex-col gap-6 lg:flex-row">
                     <aside className="w-full max-w-xs space-y-4 lg:w-64 ">
                       <div className='sticky top-0 space-y-4'>
 
-                      <div className="flex items-center gap-3 rounded-2xl bg-white/5 p-3 ">
+                      <div className="flex items-center gap-3 rounded-2xl bg-surface-muted/60 p-3 ">
                         <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-500">
                           <span className="text-sm font-semibold text-white">7D</span>
                         </div>
                         <div>
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-muted">
                             Written by
                           </p>
-                          <p className="text-sm font-medium text-white">
+                          <p className="text-sm font-medium text-text-secondary">
                             {values.authorName || 'Team 7D Design'}
                           </p>
-                          <p className="text-[11px] text-white/60">
+                          <p className="text-[11px] text-text-muted">
                             {values.authorRole || 'Content Team'}
                           </p>
                         </div>
                       </div>
 
-                      <div className="space-y-2 rounded-2xl bg-white/5 p-3">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">
+                      <div className="space-y-2 rounded-2xl bg-surface-muted/60 p-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-muted">
                           Contents
                         </p>
-                        <ul className="space-y-1 text-sm text-white/80">
+                        <ul className="space-y-1 text-sm text-text-secondary/80">
                           {headingsForContents.map((block) => (
                             <li key={block.id}>{block.heading}</li>
                           ))}
                         </ul>
                       </div>
 
-                      <div className="space-y-2 rounded-2xl bg-white/5 p-3 text-[11px] text-white/70">
+                      <div className="space-y-2 rounded-2xl bg-surface-muted/60 p-3 text-[11px] text-text-muted">
                         <p>
                           <span className="inline-block h-1 w-10 rounded-full bg-gradient-to-r from-orange-400 to-purple-500" />
                         </p>
@@ -854,16 +911,16 @@ const BlogPostFormModal = ({ isOpen, mode, initialPost, onClose, onSubmit }: Blo
                     </aside>
 
                     <article className="flex-1 space-y-4">
-                      <h1 className="text-3xl font-semibold leading-tight text-white">
+                      <h1 className="text-3xl font-semibold leading-tight text-text-secondary">
                         {values.title || 'Your blog title will appear here'}
                       </h1>
-                      <p className="max-w-3xl text-sm text-white/70">
+                      <p className="max-w-3xl text-sm text-text-muted">
                         {values.excerpt ||
                           'Use the previous steps to structure your case-study style blog post.'}
                       </p>
 
                       {values.coverPreview ? (
-                        <div className="mt-4 overflow-hidden rounded-3xl border border-white/10 bg-black/40">
+                        <div className="mt-4 overflow-hidden rounded-3xl border border-border/60 bg-surface-muted/80">
                           <img
                             src={values.coverPreview}
                             alt=""

@@ -1,7 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { BlogPost } from '../../components/blog/types'
 import BlogPostFormModal from '../../components/blog/BlogPostFormModal'
-import { fetchBlogCategories, type BlogCategory } from '../../lib/api/blog'
+import Modal from '../../components/common/Modal'
+import {
+  createBlogPost,
+  deleteBlogPost,
+  fetchBlogCategories,
+  fetchBlogPosts,
+  updateBlogPost,
+  type BlogCategory,
+} from '../../lib/api/blog'
+
+const secondaryButtonClasses =
+  'inline-flex h-10 items-center justify-center rounded-lg border border-border/60 px-4 text-sm font-semibold text-text-secondary transition hover:border-accent hover:text-accent focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-60'
+
+const dangerButtonClasses =
+  'inline-flex h-10 items-center justify-center rounded-lg bg-error px-4 text-sm font-semibold text-white transition hover:bg-error/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-error/50 disabled:cursor-not-allowed disabled:opacity-60'
 
 const BlogPostsPage = () => {
   const [posts, setPosts] = useState<BlogPost[]>([])
@@ -14,8 +28,13 @@ const BlogPostsPage = () => {
   const [page, setPage] = useState(1)
   const [pageSize] = useState(6)
   const [totalCount, setTotalCount] = useState(0)
-  const [isLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [statusMessage, setStatusMessage] = useState<string | null>(null)
+
+  const [deleteTarget, setDeleteTarget] = useState<BlogPost | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -38,58 +57,61 @@ const BlogPostsPage = () => {
     }
   }, [])
 
-  // useEffect(() => {
-  //   let isMounted = true
+  const loadPosts = async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const { items, total } = await fetchBlogPosts({
+        page,
+        pageSize,
+        categoryId: selectedCategoryId === 'all' ? null : selectedCategoryId,
+      })
+      setPosts(items)
+      setTotalCount(total)
+      setActivePostId((previous) => {
+        if (previous && items.some((item) => item.id === previous)) {
+          return previous
+        }
+        return items[0]?.id ?? null
+      })
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Unable to load blog posts.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
-  //   const loadPosts = async () => {
-  //     setIsLoading(true)
-  //     setError(null)
-  //     try {
-  //       const { items, total } = await fetchBlogPosts({
-  //         page,
-  //         pageSize,
-  //         categoryId: selectedCategoryId === 'all' ? null : selectedCategoryId,
-  //       })
-  //       if (!isMounted) {
-  //         return
-  //       }
-  //       if (!items.length) {
-  //         const seed = buildSeedPost()
-  //         setPosts([seed])
-  //         setActivePostId(seed.id)
-  //         setTotalCount(1)
-  //         return
-  //       }
-  //       setPosts(items)
-  //       setTotalCount(total)
-  //       setActivePostId((previous) => {
-  //         if (previous && items.some((item) => item.id === previous)) {
-  //           return previous
-  //         }
-  //         return items[0]?.id ?? null
-  //       })
-  //     } catch (loadError) {
-  //       if (!isMounted) {
-  //         return
-  //       }
-  //       setError(loadError instanceof Error ? loadError.message : 'Unable to load blog posts.')
-  //       const seed = buildSeedPost()
-  //       setPosts([seed])
-  //       setActivePostId(seed.id)
-  //       setTotalCount(1)
-  //     } finally {
-  //       if (isMounted) {
-  //         setIsLoading(false)
-  //       }
-  //     }
-  //   }
-
-  //   loadPosts()
-
-  //   return () => {
-  //     isMounted = false
-  //   }
-  // }, [page, pageSize, selectedCategoryId])
+  useEffect(() => {
+    let isMounted = true
+    ;(async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const { items, total } = await fetchBlogPosts({
+          page,
+          pageSize,
+          categoryId: selectedCategoryId === 'all' ? null : selectedCategoryId,
+        })
+        if (!isMounted) return
+        setPosts(items)
+        setTotalCount(total)
+        setActivePostId((previous) => {
+          if (previous && items.some((item) => item.id === previous)) {
+            return previous
+          }
+          return items[0]?.id ?? null
+        })
+      } catch (loadError) {
+        if (!isMounted) return
+        setError(loadError instanceof Error ? loadError.message : 'Unable to load blog posts.')
+      } finally {
+        if (isMounted) setIsLoading(false)
+      }
+    })()
+    return () => {
+      isMounted = false
+    }
+  }, [page, pageSize, selectedCategoryId])
 
   const activePost = useMemo(
     () => posts.find((post) => post.id === activePostId) ?? posts[0] ?? null,
@@ -112,20 +134,55 @@ const BlogPostsPage = () => {
     setFormOpen(false)
   }
 
-  const handleSubmitPost = (post: BlogPost) => {
+  const extractApiError = (err: unknown, fallback: string) => {
+    const anyErr = err as any
+    return (
+      anyErr?.response?.data?.message ??
+      anyErr?.response?.data?.error ??
+      anyErr?.message ??
+      fallback
+    )
+  }
+
+  const handleSubmitPost = async (post: BlogPost) => {
     setError(null)
-    setPosts((previous) => {
-      const existingIndex = previous.findIndex((item) => item.id === post.id)
-      if (existingIndex === -1) {
-        const next = [post, ...previous]
-        setTotalCount((current) => current + 1)
-        return next
-      }
-      const next = [...previous]
-      next[existingIndex] = post
-      return next
-    })
-    setActivePostId(post.id)
+    setStatusMessage(null)
+    if (formMode === 'edit' && postBeingEdited) {
+      await updateBlogPost(postBeingEdited.id, post)
+      setStatusMessage(`Updated "${post.title}" successfully.`)
+    } else {
+      await createBlogPost(post)
+      setStatusMessage(`Added "${post.title}" successfully.`)
+      setPage(1)
+    }
+    await loadPosts()
+  }
+
+  const handleRequestDelete = (post: BlogPost) => {
+    setDeleteError(null)
+    setDeleteTarget(post)
+  }
+
+  const handleCancelDelete = () => {
+    if (isDeleting) return
+    setDeleteTarget(null)
+    setDeleteError(null)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return
+    setIsDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteBlogPost(deleteTarget.id)
+      setStatusMessage(`Removed "${deleteTarget.title}".`)
+      setDeleteTarget(null)
+      await loadPosts()
+    } catch (err) {
+      setDeleteError(extractApiError(err, 'Could not delete the post. Please try again.'))
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   const contentsHeadings = (activePost?.sections ?? []).filter(
@@ -181,6 +238,22 @@ const BlogPostsPage = () => {
           Add post
         </button>
       </header>
+
+      {statusMessage ? (
+        <div className="inline-flex items-center gap-2 rounded-xl border border-success/40 bg-success/10 px-4 py-2 text-xs font-medium text-success">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.5}
+            className="h-4 w-4"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+          </svg>
+          {statusMessage}
+        </div>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,2.2fr)]">
         <div className="space-y-5 rounded-3xl border border-border/60 bg-surface/80 p-5">
@@ -266,6 +339,16 @@ const BlogPostsPage = () => {
                     >
                       Edit
                     </button>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        handleRequestDelete(post)
+                      }}
+                      className="rounded-full border border-border/60 px-2.5 py-1 text-[11px] font-semibold text-text-secondary hover:border-error/60 hover:text-error"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </li>
               ))}
@@ -298,38 +381,38 @@ const BlogPostsPage = () => {
         </div>
 
         <div className="space-y-5 ">
-          <div className="rounded-3xl border border-border/60 bg-[#111111] p-6 text-white">
+          <div className="rounded-3xl border border-border/60 bg-surface p-6 text-text-secondary">
             <div className="flex h-[75vh] flex-col gap-6 overflow-hidden lg:flex-row">
               <aside className="w-full max-w-xs space-y-4 lg:w-64 lg:flex-none ">
-                <div className="flex items-center gap-3 rounded-2xl bg-white/5 p-3">
+                <div className="flex items-center gap-3 rounded-2xl bg-surface-muted/60 p-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-500">
                     <span className="text-sm font-semibold text-white">7D</span>
                   </div>
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-muted">
                       Written by
                     </p>
-                    <p className="text-sm font-medium text-white">
+                    <p className="text-sm font-medium text-text-secondary">
                       {activePost?.authorName || 'Team 7D Design'}
                     </p>
-                    <p className="text-[11px] text-white/60">
+                    <p className="text-[11px] text-text-muted">
                       {activePost?.authorRole || 'Content Team'}
                     </p>
                   </div>
                 </div>
 
-                <div className="space-y-2 rounded-2xl bg-white/5 p-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">
+                <div className="space-y-2 rounded-2xl bg-surface-muted/60 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-muted">
                     Contents
                   </p>
-                  <ul className="space-y-1 text-sm text-white/80">
+                  <ul className="space-y-1 text-sm text-text-secondary/80">
                     {contentsHeadings.map((block) => (
                       <li key={block.id}>{block.heading}</li>
                     ))}
                   </ul>
                 </div>
 
-                <div className="space-y-2 rounded-2xl bg-white/5 p-3 text-[11px] text-white/70">
+                <div className="space-y-2 rounded-2xl bg-surface-muted/60 p-3 text-[11px] text-text-muted">
                   <p>
                     <span className="inline-block h-1 w-10 rounded-full bg-gradient-to-r from-orange-400 to-purple-500" />
                   </p>
@@ -337,17 +420,19 @@ const BlogPostsPage = () => {
                 </div>
               </aside>
 
-              <article className="flex-1 space-y-4 overflow-y-auto pr-1">
-                <h1 className="text-3xl font-semibold leading-tight text-white">
+              <article
+                className="flex-1 space-y-4 overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              >
+                <h1 className="text-3xl font-semibold leading-tight text-text-secondary">
                   {activePost?.title || 'Your blog title will appear here'}
                 </h1>
-                <p className="max-w-3xl text-sm text-white/70">
+                <p className="max-w-3xl text-sm text-text-muted">
                   {activePost?.excerpt ||
                     'Use the “Add post” button to create a long-form, case-study style article.'}
                 </p>
 
                 {activePost?.coverImageUrl ? (
-                  <div className="mt-4 overflow-hidden rounded-3xl border border-white/10 bg-black/40">
+                  <div className="mt-4 overflow-hidden rounded-3xl border border-border/60 bg-surface-muted/80">
                     <img
                       src={activePost.coverImageUrl}
                       alt=""
@@ -363,7 +448,7 @@ const BlogPostsPage = () => {
                       return (
                         <h2
                           key={block.id}
-                          className="mt-10 text-lg font-semibold tracking-[0.16em] text-white"
+                          className="mt-10 text-lg font-semibold tracking-[0.16em] text-text-secondary"
                         >
                           {block.heading}
                         </h2>
@@ -373,36 +458,22 @@ const BlogPostsPage = () => {
                     if (block.type === 'paragraph') {
                       if (!block.text) return null
                       return (
-                        <p
+                        <div
                           key={block.id}
-                          className="mt-4 max-w-3xl text-sm leading-relaxed text-white/80 whitespace-pre-line"
-                        >
-                          {block.text}
-                        </p>
+                          className="mt-4 max-w-3xl text-sm leading-relaxed text-text-secondary/80 [&_p]:my-2 [&_a]:text-accent [&_a]:underline [&_strong]:font-semibold [&_em]:italic"
+                          dangerouslySetInnerHTML={{ __html: block.text }}
+                        />
                       )
                     }
 
                     if (block.type === 'list') {
                       if (!block.text) return null
-                      const items = block.text
-                        .split('\n')
-                        .map((line) => line.trim())
-                        .filter(Boolean)
-                      if (!items.length) return null
-
-                      const ListTag = (block.ordered ? 'ol' : 'ul') as 'ol' | 'ul'
-
                       return (
-                        <ListTag
+                        <div
                           key={block.id}
-                          className={`mt-4 ml-5 space-y-1 text-sm text-white/80 ${
-                            block.ordered ? 'list-decimal' : 'list-disc'
-                          }`}
-                        >
-                          {items.map((item, index) => (
-                            <li key={`${block.id}-${index}`}>{item}</li>
-                          ))}
-                        </ListTag>
+                          className="mt-4 text-sm text-text-secondary/80 [&_ul]:ml-5 [&_ul]:list-disc [&_ol]:ml-5 [&_ol]:list-decimal [&_li]:my-1 [&_a]:text-accent [&_a]:underline"
+                          dangerouslySetInnerHTML={{ __html: block.text }}
+                        />
                       )
                     }
 
@@ -411,7 +482,7 @@ const BlogPostsPage = () => {
                       return (
                         <div
                           key={block.id}
-                          className="mt-6 overflow-hidden rounded-3xl border border-white/10 bg-black/40"
+                          className="mt-6 overflow-hidden rounded-3xl border border-border/60 bg-surface-muted/80"
                         >
                           <img
                             src={block.imageUrl}
@@ -435,9 +506,44 @@ const BlogPostsPage = () => {
         isOpen={isFormOpen}
         mode={formMode}
         initialPost={postBeingEdited}
+        categories={categories}
         onClose={handleCloseForm}
         onSubmit={handleSubmitPost}
       />
+
+      <Modal isOpen={Boolean(deleteTarget)} onClose={handleCancelDelete} className="max-w-md">
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-text-secondary">Delete post</h2>
+          <p className="text-sm text-text-muted">
+            Are you sure you want to remove{' '}
+            <span className="font-semibold text-text-secondary">{deleteTarget?.title}</span>? This
+            action cannot be undone.
+          </p>
+          {deleteError ? (
+            <p className="rounded-xl border border-error/50 bg-error/10 px-3 py-2 text-xs text-error">
+              {deleteError}
+            </p>
+          ) : null}
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={handleCancelDelete}
+              className={secondaryButtonClasses}
+              disabled={isDeleting}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmDelete}
+              className={dangerButtonClasses}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting…' : 'Delete post'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </section>
   )
 }

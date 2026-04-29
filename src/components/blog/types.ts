@@ -17,6 +17,8 @@ export type BlogContentBlock = {
 
 export type BlogPost = {
   id: string
+  categoryId: string
+  status: 0 | 1
   title: string
   slug: string
   excerpt: string
