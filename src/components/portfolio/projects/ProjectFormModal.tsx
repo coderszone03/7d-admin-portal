@@ -49,6 +49,10 @@ type FieldErrorKey =
   | 'websiteUrl'
   | 'websiteTitle'
   | 'websiteDescription'
+  | 'testimonialFeedback'
+  | 'testimonialClientName'
+  | 'testimonialDesignation'
+  | 'footerMockup'
 
 type MediaFieldKey = ProjectMediaField
 
@@ -101,53 +105,33 @@ const buildInitialValues = (project: Project | null): ProjectDetailsFormValues =
     return { ...defaultValues }
   }
 
-  const fallbackOverview =
-    project.overviewDescription ||
-    'This project overview will be expanded with objectives, approach, and key outcomes.'
-
-  const slug = project.title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '') || 'project'
-
-  const defaultWebsiteUrl = `https://example.com/${slug}`
-
   return {
     title: project.title,
     year: project.year ?? '',
     category: project.category,
     shortDescription: project.shortDescription,
-    overviewDescription: fallbackOverview,
-    scopeOfWork: project.scopeOfWork ?? 'Brand identity, website, launch toolkit',
-    industries: project.industries ?? 'Brand, digital',
+    overviewDescription: project.overviewDescription,
+    scopeOfWork: project.scopeOfWork,
+    industries: project.industries,
     keywords: project.keywords,
-    primaryColor: '#2A2A76',
-    secondaryColor: '#C3C3C3',
-    accentColor: '#EF5A2B',
-    badgeName: 'Extending the brand',
-    brandTitle: `${project.title} – Creating a cohesive visual narrative`,
-    brandDescription:
-      'By redefining the identity and building a cohesive visual system, we aligned messaging, visuals, and touchpoints to create a consistent brand experience.',
-    landscapeMockupPreview:
-      project.clientMockupUrl ??
-      'https://placehold.co/1600x700/222222/666666?text=Landscape+Mockup',
-    websiteMockupPreview:
-      project.brandingMockupUrl ??
-      'https://placehold.co/1600x700/111111/666666?text=Website+Mockup',
-    websiteUrl: defaultWebsiteUrl,
-    websiteTitle: project.title,
-    websiteDescription:
-      'We aimed to modernise the brand to increase awareness, with a subtle nod to its previous logo and a modular digital experience.',
-    isWebsiteEnabled: true,
-    testimonialFeedback:
-      '“Seven Design helped us launch a cohesive brand system that lifted conversions and internal confidence across the team.”',
-    testimonialClientName: 'Anushka Sharma',
-    testimonialDesignation: 'Founder',
-    footerMockupPreview:
-      project.brandingMockupSecondaryUrl ??
-      'https://placehold.co/1600x120/111111/666666?text=Footer+Brand+Strip',
+    primaryColor: project.primaryColor || defaultValues.primaryColor,
+    secondaryColor: project.secondaryColor || defaultValues.secondaryColor,
+    accentColor: project.accentColor || defaultValues.accentColor,
+    badgeName: project.badgeName,
+    brandTitle: project.brandTitle,
+    brandDescription: project.brandDescription,
+    landscapeMockupPreview: project.landscapeMockupUrl,
+    websiteMockupPreview: project.websiteMockupUrl,
+    websiteUrl: project.websiteUrl,
+    websiteTitle: project.websiteTitle,
+    websiteDescription: project.websiteDescription,
+    isWebsiteEnabled: project.isWebsiteEnabled,
+    testimonialFeedback: project.testimonialFeedback,
+    testimonialClientName: project.testimonialClientName,
+    testimonialDesignation: project.testimonialDesignation,
+    footerMockupPreview: project.footerMockupUrl,
     thumbnailFile: null,
-    thumbnailPreview: project.thumbnailUrl,
+    thumbnailPreview: project.thumbnailUrl || null,
     clientMockupFile: null,
     clientMockupPreview: project.clientMockupUrl,
     brandingMockupFile: null,
@@ -538,6 +522,10 @@ const ProjectFormModal = ({
       nextErrors.brandingMockup = 'Upload a branding mockup.'
     }
 
+    if (!values.brandingMockupSecondaryPreview) {
+      nextErrors.brandingMockupSecondary = 'Upload a secondary branding mockup.'
+    }
+
     const trimmedBadge = values.badgeName.trim()
     const trimmedBrandTitle = values.brandTitle.trim()
     const trimmedBrandDescription = values.brandDescription.trim()
@@ -552,6 +540,30 @@ const ProjectFormModal = ({
 
     if (!trimmedBrandDescription) {
       nextErrors.brandDescription = 'Brand description is required.'
+    }
+
+    return nextErrors
+  }
+
+  const validateTestimonialStep = () => {
+    const nextErrors: Partial<Record<FieldErrorKey, string>> = {}
+
+    const trimmedFeedback = values.testimonialFeedback.trim()
+    const trimmedClient = values.testimonialClientName.trim()
+    const trimmedDesignation = values.testimonialDesignation.trim()
+
+    if (!trimmedFeedback) {
+      nextErrors.testimonialFeedback = 'Testimonial feedback is required.'
+    }
+    if (!trimmedClient) {
+      nextErrors.testimonialClientName = 'Client name is required.'
+    }
+    if (!trimmedDesignation) {
+      nextErrors.testimonialDesignation = 'Designation is required.'
+    }
+
+    if (!values.footerMockupPreview) {
+      nextErrors.footerMockup = 'Upload a footer brand strip.'
     }
 
     return nextErrors
@@ -647,6 +659,7 @@ const ProjectFormModal = ({
       if (
         mediaErrors.clientMockup ||
         mediaErrors.brandingMockup ||
+        mediaErrors.brandingMockupSecondary ||
         mediaErrors.badgeName ||
         mediaErrors.brandTitle ||
         mediaErrors.brandDescription
@@ -680,14 +693,39 @@ const ProjectFormModal = ({
       return
     }
 
-    // Step 5 – testimonials & footer (no extra validations yet)
+    // Step 5 – testimonials & footer
     if (activeStepIndex === 4) {
+      const testimonialErrors = validateTestimonialStep()
+
+      if (
+        testimonialErrors.testimonialFeedback ||
+        testimonialErrors.testimonialClientName ||
+        testimonialErrors.testimonialDesignation ||
+        testimonialErrors.footerMockup
+      ) {
+        setErrors(testimonialErrors)
+        return
+      }
+
       setErrors({})
       setActiveStepIndex(5)
       return
     }
 
-    // Step 6 – submit
+    // Step 6 – submit: re-validate everything to guard against back-navigation edits.
+    const allErrors: Partial<Record<FieldErrorKey, string>> = {
+      ...validateDetailsStep(),
+      ...validateOverviewStep(),
+      ...validateMediaStep(),
+      ...validateMockupsStep(),
+      ...validateTestimonialStep(),
+    }
+
+    if (Object.values(allErrors).some(Boolean)) {
+      setErrors(allErrors)
+      setFormError('Some required fields are missing. Please go back and fix them.')
+      return
+    }
 
     const trimmedOverview = values.overviewDescription.trim()
     const trimmedScope = values.scopeOfWork.trim()
@@ -710,6 +748,22 @@ const ProjectFormModal = ({
         clientMockupDataUrl: values.clientMockupPreview ?? '',
         brandingMockupDataUrl: values.brandingMockupPreview ?? '',
         brandingMockupSecondaryDataUrl: values.brandingMockupSecondaryPreview ?? '',
+        primaryColor: values.primaryColor,
+        secondaryColor: values.secondaryColor,
+        accentColor: values.accentColor,
+        badgeName: values.badgeName.trim(),
+        brandTitle: values.brandTitle.trim(),
+        brandDescription: values.brandDescription.trim(),
+        landscapeMockupDataUrl: values.landscapeMockupPreview ?? '',
+        websiteMockupDataUrl: values.websiteMockupPreview ?? '',
+        footerMockupDataUrl: values.footerMockupPreview ?? '',
+        websiteUrl: values.websiteUrl.trim(),
+        websiteTitle: values.websiteTitle.trim(),
+        websiteDescription: values.websiteDescription.trim(),
+        isWebsiteEnabled: values.isWebsiteEnabled,
+        testimonialFeedback: values.testimonialFeedback.trim(),
+        testimonialClientName: values.testimonialClientName.trim(),
+        testimonialDesignation: values.testimonialDesignation.trim(),
       }
 
       await onSubmit(payload)

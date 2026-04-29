@@ -447,7 +447,7 @@ const ClientsPage = () => {
                     className="group relative flex h-full flex-col items-center gap-4 rounded-3xl border border-border/60 bg-surface px-4 py-5 text-center shadow-sm transition hover:border-[#6366f1]/70 hover:shadow-[0_18px_35px_-20px_rgba(99,102,241,0.65)]"
                   >
                     <div
-                      className="absolute right-3 top-3"
+                      className="absolute right-1 top-3"
                       ref={openMenuId === item.id ? menuRef : undefined}
                     >
                       <button
@@ -457,7 +457,7 @@ const ClientsPage = () => {
                           setOpenMenuId((curr) => (curr === item.id ? null : item.id))
                         }}
                         data-open={openMenuId === item.id}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-transparent text-text-muted transition duration-150 hover:bg-surface-muted/70 hover:text-text-secondary focus:outline-none focus:ring-2 focus:ring-[#6366f1]/40 data-[open=true]:bg-surface-muted/70 data-[open=true]:text-[#6366f1]"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-transparent text-text-muted transition duration-150 hover:bg-surface-muted/70 hover:text-text-secondary data-[open=true]:bg-surface-muted/70 data-[open=true]:text-[#6366f1]"
                         aria-label={`Actions for ${item.name}`}
                         aria-haspopup="menu"
                         aria-expanded={openMenuId === item.id}
@@ -476,7 +476,7 @@ const ClientsPage = () => {
                       {openMenuId === item.id ? (
                         <div
                           role="menu"
-                          className="absolute right-0 top-8 z-20 min-w-[140px] overflow-hidden rounded-xl border border-border/60 bg-surface shadow-lg"
+                          className="absolute left-full top-0 z-20 ml-2 min-w-[140px] overflow-hidden rounded-xl border border-border/60 bg-surface shadow-lg"
                         >
                           <button
                             type="button"
@@ -531,11 +531,11 @@ const ClientsPage = () => {
                         </div>
                       ) : null}
                     </div>
-                    <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-border/60 bg-background/70 transition group-hover:border-[#6366f1]/70">
+                    <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl  transition">
                       <img
                         src={item.logoUrl}
                         alt={item.name}
-                        className="h-full w-full object-contain"
+                        className="h-full w-full object-contain bg-white"
                       />
                       <span className="absolute inset-0 rounded-2xl bg-gradient-to-t from-black/10 via-transparent to-transparent opacity-0 transition group-hover:opacity-100" />
                     </div>
@@ -682,7 +682,7 @@ const ClientsPage = () => {
               ) : null}
             </p>
             <div className="relative flex flex-col items-center gap-4 rounded-3xl border border-dashed border-border/60 bg-background/70 p-6 text-center transition hover:border-accent/50 focus-within:border-accent/60 focus-within:bg-background/80">
-              <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-border/60 bg-surface-muted/70 shadow-inner">
+              <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-inner">
                 {logoPreview ? (
                   <img
                     src={logoPreview}

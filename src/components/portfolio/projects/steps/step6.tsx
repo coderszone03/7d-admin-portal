@@ -70,65 +70,59 @@ const Step6 = ({ values }: PreviewStepProps) => {
     <div className="h-auto rounded-xl bg-[#1D1D1D] pt-[5%]">
       <div className="mx-auto w-full p-5">
         {/* Top Tags */}
-        <div className="mb-[1.8rem] flex h-auto w-full items-center justify-start">
-          <div className="flex items-center gap-[0.9rem]">
-            {chips.length
-              ? chips.map((label) => (
-                  <div
-                    key={label}
-                    className="h-auto w-auto rounded-[6px] bg-[#ff6b35] px-[0.9rem] py-[0.35rem] text-[0.8rem] font-bold uppercase tracking-[0.14em] text-white"
-                  >
-                    {label}
-                  </div>
-                ))
-              : (
-                <>
-                  <div className="h-auto w-auto rounded-[6px] bg-[#ff6b35] px-[0.9rem] py-[0.35rem] text-[0.9rem] font-semibold uppercase tracking-[0.14em] text-white">
-                    BRANDING
-                  </div>
-                  <div className="h-auto w-auto rounded-[6px] bg-[#ff6b35] px-[0.9rem] py-[0.35rem] text-[0.9rem] font-semibold uppercase tracking-[0.14em] text-white">
-                    WEBSITE
-                  </div>
-                </>
-              )}
-          </div>
+        <div className="mb-6 flex w-full flex-wrap items-center gap-2">
+          {chips.length ? (
+            chips.map((label) => (
+              <span
+                key={label}
+                className="rounded-[6px] bg-[#ff6b35] px-3 py-1.5 text-[0.75rem] font-bold uppercase tracking-[0.14em] text-white"
+              >
+                {label}
+              </span>
+            ))
+          ) : (
+            <>
+              <span className="rounded-[6px] bg-[#ff6b35] px-3 py-1.5 text-[0.75rem] font-bold uppercase tracking-[0.14em] text-white">
+                BRANDING
+              </span>
+              <span className="rounded-[6px] bg-[#ff6b35] px-3 py-1.5 text-[0.75rem] font-bold uppercase tracking-[0.14em] text-white">
+                WEBSITE
+              </span>
+            </>
+          )}
         </div>
 
         {/* Hero Section with Banner */}
-        <div className="relative h-auto w-full">
-          <div className="mb-2 h-full w-full overflow-hidden rounded-[32px]">
-            <img className="w-full object-cover" alt={title} src={bannerSrc} />
-          </div>
+        <div className="relative w-full overflow-hidden rounded-[32px]">
+          <img className="block h-auto w-full object-cover" alt={title} src={bannerSrc} />
 
-          {/* Dark overlay box */}
-          <div className="absolute bottom-[92%] right-0 h-auto w-[54%] rounded-bl-[32px] bg-[#1D1D1D] px-[3rem] py-[2rem]">
-            <div className="w-full">
-              <div className="mb-1 flex h-auto w-full items-center justify-start gap-1">
-                <div className="h-[0.5rem] w-[0.5rem] rounded-full bg-purple-500" />
-                <p className="text-[0.8rem] font-semibold text-white">{yearLabel}</p>
-              </div>
-              <h3 className="mb-2 text-[2rem] font-black uppercase leading-none text-white">
-                {title}
-              </h3>
-              <p className="w-full text-[1rem] text-white">{description}</p>
+          {/* Dark overlay box anchored to the banner's top-right */}
+          <div className="absolute right-0 top-0 w-[54%] rounded-bl-[32px] bg-[#1D1D1D] px-[2.5rem] py-[1.75rem]">
+            <div className="mb-1 flex items-center gap-1.5">
+              <div className="h-[0.5rem] w-[0.5rem] rounded-full bg-purple-500" />
+              <p className="text-[0.8rem] font-semibold text-white">{yearLabel}</p>
             </div>
+            <h3 className="mb-2 text-[2rem] font-black uppercase leading-none text-white">
+              {title}
+            </h3>
+            <p className="text-[0.95rem] leading-snug text-white">{description}</p>
 
-            {/* Corner SVG */}
+            {/* Concave notch at the overlay's bottom-left edge */}
             <svg
-              className="absolute top-[calc(100%-1px)] -right-[1px] h-[4.0rem] w-[4.0rem] rotate-90 fill-current text-[#1D1D1D]"
+              className="pointer-events-none absolute -left-[2.5rem] top-0 h-[2.5rem] w-[2.5rem] fill-current text-[#1D1D1D]"
               viewBox="0 0 100 100"
             >
-              <path d="M51.9 0v1.9c-27.6 0-50 22.4-50 50H0V0h51.9z" />
+              <path d="M100 100 V0 H0 C55 0 100 45 100 100 Z" />
+            </svg>
+
+            {/* Concave notch at the overlay's bottom-right (meets banner bottom-right corner) */}
+            <svg
+              className="pointer-events-none absolute -bottom-[2.5rem] right-0 h-[2.5rem] w-[2.5rem] fill-current text-[#1D1D1D]"
+              viewBox="0 0 100 100"
+            >
+              <path d="M100 100 V0 H0 C55 0 100 45 100 100 Z" />
             </svg>
           </div>
-
-          {/* Left corner SVG */}
-          <svg
-            className="absolute -top-[1px] left-[calc(46%-3.6rem+1px)] h-[3.0rem] w-[4.5rem] rotate-90 fill-current text-[#1D1D1D]"
-            viewBox="0 0 100 100"
-          >
-            <path d="M51.9 0v1.9c-27.6 0-50 22.4-50 50H0V0h51.9z" />
-          </svg>
         </div>
 
         {/* Project Overview Section (Step 2 details) */}

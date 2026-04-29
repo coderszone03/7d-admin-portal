@@ -19,6 +19,22 @@ export type Project = {
   clientMockupUrl: string | null
   brandingMockupUrl: string | null
   brandingMockupSecondaryUrl: string | null
+  landscapeMockupUrl: string | null
+  websiteMockupUrl: string | null
+  footerMockupUrl: string | null
+  primaryColor: string
+  secondaryColor: string
+  accentColor: string
+  badgeName: string
+  brandTitle: string
+  brandDescription: string
+  websiteUrl: string
+  websiteTitle: string
+  websiteDescription: string
+  isWebsiteEnabled: boolean
+  testimonialFeedback: string
+  testimonialClientName: string
+  testimonialDesignation: string
   createdAt: string
   updatedAt: string
 }
@@ -73,6 +89,23 @@ export type ProjectDetailsStepPayload = {
   clientMockupDataUrl: string
   brandingMockupDataUrl: string
   brandingMockupSecondaryDataUrl: string
+  // Extended fields — carried from the form to the API layer.
+  primaryColor: string
+  secondaryColor: string
+  accentColor: string
+  badgeName: string
+  brandTitle: string
+  brandDescription: string
+  landscapeMockupDataUrl: string
+  websiteMockupDataUrl: string
+  footerMockupDataUrl: string
+  websiteUrl: string
+  websiteTitle: string
+  websiteDescription: string
+  isWebsiteEnabled: boolean
+  testimonialFeedback: string
+  testimonialClientName: string
+  testimonialDesignation: string
 }
 
 export const PROJECT_CATEGORY_OPTIONS: Array<{
