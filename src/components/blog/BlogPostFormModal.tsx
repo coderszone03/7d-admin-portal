@@ -36,6 +36,19 @@ type FieldErrorKey =
   | 'authorRole'
   | 'coverPreview'
 
+const LIMIT_TITLE = 200
+const LIMIT_SLUG = 250
+const LIMIT_EXCERPT = 300
+const LIMIT_AUTHOR_NAME = 48
+const LIMIT_AUTHOR_ROLE = 48
+
+const counterToneClass = (used: number, max: number): string => {
+  const ratio = used / max
+  if (ratio >= 1) return 'text-error'
+  if (ratio >= 0.9) return 'text-warning'
+  return 'text-text-muted'
+}
+
 const createBlock = (type: BlogContentBlockType): BlogContentBlock => {
   const id = `${type}-${Date.now()}-${Math.random().toString(16).slice(2)}`
   if (type === 'heading') {
@@ -511,10 +524,16 @@ const BlogPostFormModal = ({
               <div className="space-y-5">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-text-muted">Post title</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-medium text-text-muted">Post title</label>
+                      <span className={`text-[10px] font-medium ${counterToneClass(values.title.length, LIMIT_TITLE)}`}>
+                        {values.title.length}/{LIMIT_TITLE}
+                      </span>
+                    </div>
                     <input
                       value={values.title}
                       onChange={(event) => handleTitleChange(event.target.value)}
+                      maxLength={LIMIT_TITLE}
                       className="w-full rounded-2xl border border-border/60 bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                       placeholder="Leverage the power of AI in your SEO"
                     />
@@ -523,10 +542,16 @@ const BlogPostFormModal = ({
                     ) : null}
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-text-muted">Slug</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-medium text-text-muted">Slug</label>
+                      <span className={`text-[10px] font-medium ${counterToneClass(values.slug.length, LIMIT_SLUG)}`}>
+                        {values.slug.length}/{LIMIT_SLUG}
+                      </span>
+                    </div>
                     <input
                       value={values.slug}
                       onChange={(event) => handleFieldChange('slug', event.target.value)}
+                      maxLength={LIMIT_SLUG}
                       className="w-full rounded-2xl border border-border/60 bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                       placeholder="leverage-the-power-of-ai-in-your-seo"
                     />
@@ -585,11 +610,17 @@ const BlogPostFormModal = ({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-text-muted">Short description</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-text-muted">Short description</label>
+                    <span className={`text-[10px] font-medium ${counterToneClass(values.excerpt.length, LIMIT_EXCERPT)}`}>
+                      {values.excerpt.length}/{LIMIT_EXCERPT}
+                    </span>
+                  </div>
                   <textarea
                     value={values.excerpt}
                     onChange={(event) => handleFieldChange('excerpt', event.target.value)}
                     rows={3}
+                    maxLength={LIMIT_EXCERPT}
                     className="w-full rounded-2xl border border-border/60 bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                     placeholder="A short teaser for feeds and cards."
                   />
@@ -600,12 +631,18 @@ const BlogPostFormModal = ({
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-text-muted">Author name</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-medium text-text-muted">Author name</label>
+                      <span className={`text-[10px] font-medium ${counterToneClass(values.authorName.length, LIMIT_AUTHOR_NAME)}`}>
+                        {values.authorName.length}/{LIMIT_AUTHOR_NAME}
+                      </span>
+                    </div>
                     <input
                       value={values.authorName}
                       onChange={(event) =>
                         handleFieldChange('authorName', event.target.value)
                       }
+                      maxLength={LIMIT_AUTHOR_NAME}
                       className="w-full rounded-2xl border border-border/60 bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                       placeholder="Hurman Ali Khan"
                     />
@@ -614,12 +651,18 @@ const BlogPostFormModal = ({
                     ) : null}
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-text-muted">Author role</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-medium text-text-muted">Author role</label>
+                      <span className={`text-[10px] font-medium ${counterToneClass(values.authorRole.length, LIMIT_AUTHOR_ROLE)}`}>
+                        {values.authorRole.length}/{LIMIT_AUTHOR_ROLE}
+                      </span>
+                    </div>
                     <input
                       value={values.authorRole}
                       onChange={(event) =>
                         handleFieldChange('authorRole', event.target.value)
                       }
+                      maxLength={LIMIT_AUTHOR_ROLE}
                       className="w-full rounded-2xl border border-border/60 bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                       placeholder="Digital Marketing Expert"
                     />
