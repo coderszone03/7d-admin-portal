@@ -74,11 +74,16 @@ const ProjectList = ({
   const startItem = (currentPage - 1) * itemsPerPage + 1
   const endItem = Math.min(startItem + itemsPerPage - 1, totalCount)
 
-  // Group projects into rows of two so we can let the hovered card
-  // take more width and the sibling shrink naturally.
+  // Group projects into an alternating 2 / 1 / 2 / 1 row pattern:
+  // even-indexed rows hold two cards, odd-indexed rows hold one full-width card.
   const rows: Project[][] = []
-  for (let index = 0; index < projects.length; index += 2) {
-    rows.push(projects.slice(index, index + 2))
+  let cursor = 0
+  let rowIdx = 0
+  while (cursor < projects.length) {
+    const size = rowIdx % 2 === 0 ? 2 : 1
+    rows.push(projects.slice(cursor, cursor + size))
+    cursor += size
+    rowIdx += 1
   }
 
   return (

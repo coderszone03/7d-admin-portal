@@ -19,7 +19,7 @@ type Client = ApiClient
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024 // 2MB
 const FILE_TYPE_WHITELIST = ['image/png', 'image/jpeg', 'image/jpg']
-const ITEMS_PER_PAGE = 5
+const ITEMS_PER_PAGE = 10
 const MAX_NAME_LENGTH = 100
 const MAX_DESCRIPTION_LENGTH = 300
 

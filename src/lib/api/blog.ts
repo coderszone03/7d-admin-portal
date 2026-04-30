@@ -25,6 +25,14 @@ export type BlogCategory = {
   id: string
   name: string
   slug?: string
+  status?: '0' | '1'
+  createdAt?: string
+  updatedAt?: string
+}
+
+export type BlogCategoryMutationPayload = {
+  name: string
+  status: '0' | '1'
 }
 
 export type FetchBlogPostsParams = {
@@ -42,6 +50,10 @@ export type FetchBlogPostsResult = {
 const BACKEND_ORIGIN = 'https://7ddesign-backend.maverickz.online'
 
 const BLOG_CATEGORIES_ENDPOINT = '/api/admin/blog_categories'
+const BLOG_CATEGORY_ITEM_ENDPOINT = '/api/admin/blog_category'
+const BLOG_CATEGORY_CREATE_ENDPOINT = '/api/admin/blog_category/create'
+const BLOG_CATEGORY_UPDATE_ENDPOINT = '/api/admin/blog_category/update'
+const BLOG_CATEGORY_SEARCH_ENDPOINT = '/api/admin/blog_category/search'
 const BLOGS_LIST_ENDPOINT = '/api/admin/blogs'
 const BLOG_ITEM_ENDPOINT = '/api/admin/blog'
 const BLOG_CREATE_ENDPOINT = '/api/admin/blog/create'
@@ -347,17 +359,83 @@ const normaliseCategory = (raw: unknown, index: number): BlogCategory | null => 
         ? value.key
         : undefined
 
-  return { id, name, slug }
+  const rawStatus = value.status
+  const status: '0' | '1' | undefined =
+    rawStatus === 1 || rawStatus === '1' || rawStatus === true
+      ? '1'
+      : rawStatus === 0 || rawStatus === '0' || rawStatus === false
+        ? '0'
+        : undefined
+
+  const createdAt =
+    typeof value.created_at === 'string'
+      ? value.created_at
+      : typeof value.createdAt === 'string'
+        ? value.createdAt
+        : undefined
+  const updatedAt =
+    typeof value.updated_at === 'string'
+      ? value.updated_at
+      : typeof value.updatedAt === 'string'
+        ? value.updatedAt
+        : undefined
+
+  return { id, name, slug, status, createdAt, updatedAt }
 }
 
-export const fetchBlogCategories = async (): Promise<BlogCategory[]> => {
+export const fetchBlogCategories = async (perPage = 50): Promise<BlogCategory[]> => {
   const response = await client.get(BLOG_CATEGORIES_ENDPOINT, {
+    params: { per_page: perPage },
     headers: { ...getAuthHeader() },
   })
   const list = extractList(response.data)
   return list
     .map((item, index) => normaliseCategory(item, index))
     .filter((item): item is BlogCategory => Boolean(item))
+}
+
+export const fetchBlogCategoryById = async (id: string): Promise<BlogCategory | null> => {
+  const response = await client.get(
+    `${BLOG_CATEGORY_ITEM_ENDPOINT}/${encodeURIComponent(id)}`,
+    { headers: { ...getAuthHeader() } },
+  )
+  const raw = extractSingle(response.data)
+  return normaliseCategory(raw, 0)
+}
+
+export const searchBlogCategories = async (search: string): Promise<BlogCategory[]> => {
+  const response = await client.get(BLOG_CATEGORY_SEARCH_ENDPOINT, {
+    params: { search },
+    headers: { ...getAuthHeader() },
+  })
+  const list = extractList(response.data)
+  return list
+    .map((item, index) => normaliseCategory(item, index))
+    .filter((item): item is BlogCategory => Boolean(item))
+}
+
+export const createBlogCategory = async (
+  payload: BlogCategoryMutationPayload,
+): Promise<void> => {
+  await client.post(BLOG_CATEGORY_CREATE_ENDPOINT, payload, {
+    headers: { ...getAuthHeader() },
+  })
+}
+
+export const updateBlogCategory = async (
+  id: string,
+  payload: BlogCategoryMutationPayload,
+): Promise<void> => {
+  const body = { id: Number.parseInt(id, 10), ...payload }
+  await client.post(BLOG_CATEGORY_UPDATE_ENDPOINT, body, {
+    headers: { ...getAuthHeader() },
+  })
+}
+
+export const deleteBlogCategory = async (id: string): Promise<void> => {
+  await client.delete(`${BLOG_CATEGORY_ITEM_ENDPOINT}/${encodeURIComponent(id)}`, {
+    headers: { ...getAuthHeader() },
+  })
 }
 
 export const fetchBlogPosts = async (
