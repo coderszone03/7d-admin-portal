@@ -187,6 +187,7 @@ const ProjectFormModal = ({
   const [formError, setFormError] = useState<string | null>(null)
   const [isSubmitting, setSubmitting] = useState(false)
   const [activeStepIndex, setActiveStepIndex] = useState(0)
+  const [isPreloadingImages, setIsPreloadingImages] = useState(false)
 
   const fileInputResetToken = useRef(0)
   const clientMockupInputResetToken = useRef(0)
@@ -245,6 +246,7 @@ const ProjectFormModal = ({
         img.src = url
       })
 
+    setIsPreloadingImages(true)
     ;(async () => {
       const slots: Array<[keyof ProjectDetailsFormValues, string | null]> = [
         ['thumbnailPreview', initialProject.thumbnailUrl || null],
@@ -256,7 +258,19 @@ const ProjectFormModal = ({
         ['footerMockupPreview', initialProject.footerMockupUrl],
       ]
       const resolved = await Promise.all(
-        slots.map(async ([, url]) => (url ? await loadImageAsDataUrl(url) : null)),
+        slots.map(async ([key, url]) => {
+          if (!url) {
+            console.warn('[portfolio edit] no URL for', key)
+            return null
+          }
+          const dataUrl = await loadImageAsDataUrl(url)
+          if (!dataUrl) {
+            console.warn('[portfolio edit] preload FAILED for', key, url)
+          } else {
+            console.info('[portfolio edit] preload ok', key)
+          }
+          return dataUrl
+        }),
       )
       if (cancelled) return
       setValues((prev) => {
@@ -267,6 +281,7 @@ const ProjectFormModal = ({
         })
         return next
       })
+      setIsPreloadingImages(false)
     })()
 
     return () => {
@@ -1045,10 +1060,14 @@ const ProjectFormModal = ({
               ) : (
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isPreloadingImages}
                   className="inline-flex items-center justify-center rounded-2xl bg-[#111322] px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_32px_-20px_rgba(15,17,33,0.45)] transition hover:bg-[#0c0e1b] disabled:cursor-not-allowed disabled:bg-[#111322]/60"
                 >
-                  {isSubmitting ? 'Saving…' : 'Save & Continue'}
+                  {isPreloadingImages
+                    ? 'Preparing images…'
+                    : isSubmitting
+                      ? 'Saving…'
+                      : 'Save & Continue'}
                 </button>
               )}
             </div>
