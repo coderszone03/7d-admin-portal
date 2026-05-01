@@ -224,24 +224,19 @@ const extensionForMime = (mime: string): string => {
   }
 }
 
-const extensionFromUrl = (url: string): string | null => {
-  const match = url.split('?')[0].split('#')[0].match(/\.([a-zA-Z0-9]+)$/)
-  if (!match) return null
-  const ext = match[1].toLowerCase()
-  if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext)) return ext
-  return null
-}
-
 const appendImageFromPreview = async (
   form: FormData,
   field: string,
   preview: string,
 ): Promise<void> => {
   if (!preview) return
+  // Only upload freshly picked files (data URLs). For existing backend URLs we skip —
+  // the backend keeps the stored file when the field is absent, and re-fetching cross-origin
+  // fails CORS in production on /storage/*.
+  if (!preview.startsWith('data:')) return
   const blob = await urlToBlob(preview)
   if (!blob) return
-  const urlExt = preview.startsWith('data:') ? null : extensionFromUrl(preview)
-  const ext = urlExt ?? extensionForMime(blob.type || 'image/png')
+  const ext = extensionForMime(blob.type || 'image/png')
   const filename = `${field}.${ext}`
   form.append(field, blob, filename)
 }
