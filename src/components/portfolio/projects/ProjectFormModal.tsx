@@ -207,6 +207,73 @@ const ProjectFormModal = ({
     setActiveStepIndex(0)
   }, [initialProject, isOpen])
 
+  // On edit, preload every existing image URL into a data URL up front so the submit
+  // payload always contains real blobs (avoids race/CORS issues at submit time).
+  useEffect(() => {
+    if (!isOpen || !initialProject) return
+    let cancelled = false
+
+    const loadImageAsDataUrl = (url: string): Promise<string | null> =>
+      new Promise((resolve) => {
+        if (!url || url.startsWith('data:')) {
+          resolve(url || null)
+          return
+        }
+        const img = new Image()
+        img.crossOrigin = 'anonymous'
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas')
+            canvas.width = img.naturalWidth
+            canvas.height = img.naturalHeight
+            const ctx = canvas.getContext('2d')
+            if (!ctx) {
+              resolve(null)
+              return
+            }
+            ctx.drawImage(img, 0, 0)
+            resolve(canvas.toDataURL('image/png'))
+          } catch (err) {
+            console.warn('[portfolio edit] canvas taint on image', url, err)
+            resolve(null)
+          }
+        }
+        img.onerror = () => {
+          console.warn('[portfolio edit] failed to load image', url)
+          resolve(null)
+        }
+        img.src = url
+      })
+
+    ;(async () => {
+      const slots: Array<[keyof ProjectDetailsFormValues, string | null]> = [
+        ['thumbnailPreview', initialProject.thumbnailUrl || null],
+        ['clientMockupPreview', initialProject.clientMockupUrl],
+        ['brandingMockupPreview', initialProject.brandingMockupUrl],
+        ['brandingMockupSecondaryPreview', initialProject.brandingMockupSecondaryUrl],
+        ['landscapeMockupPreview', initialProject.landscapeMockupUrl],
+        ['websiteMockupPreview', initialProject.websiteMockupUrl],
+        ['footerMockupPreview', initialProject.footerMockupUrl],
+      ]
+      const resolved = await Promise.all(
+        slots.map(async ([, url]) => (url ? await loadImageAsDataUrl(url) : null)),
+      )
+      if (cancelled) return
+      setValues((prev) => {
+        const next = { ...prev }
+        slots.forEach(([key], idx) => {
+          const dataUrl = resolved[idx]
+          if (dataUrl) (next as any)[key] = dataUrl
+        })
+        return next
+      })
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [initialProject, isOpen])
+
   const handleFieldChange = <
     K extends
       | 'title'
