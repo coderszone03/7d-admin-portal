@@ -208,6 +208,38 @@ const urlToBlob = async (url: string): Promise<Blob | null> => {
   }
 }
 
+// Load an image via <img crossorigin="anonymous"> and export via canvas.
+// Bypasses the CORS preflight that fetch() triggers — works as long as the server
+// responds with `Access-Control-Allow-Origin: *` on the image resource (the backend's
+// /storage/* route does). In dev, route through the Vite proxy for speed.
+const imageUrlToBlobViaCanvas = (url: string, mime = 'image/png'): Promise<Blob | null> =>
+  new Promise((resolve) => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas')
+        canvas.width = img.naturalWidth
+        canvas.height = img.naturalHeight
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          resolve(null)
+          return
+        }
+        ctx.drawImage(img, 0, 0)
+        canvas.toBlob(
+          (blob) => resolve(blob),
+          mime,
+          mime === 'image/jpeg' ? 0.9 : undefined,
+        )
+      } catch {
+        resolve(null)
+      }
+    }
+    img.onerror = () => resolve(null)
+    img.src = toProxiedUrl(url)
+  })
+
 const extensionForMime = (mime: string): string => {
   switch (mime) {
     case 'image/png':
@@ -230,11 +262,15 @@ const appendImageFromPreview = async (
   preview: string,
 ): Promise<void> => {
   if (!preview) return
-  // Only upload freshly picked files (data URLs). For existing backend URLs we skip —
-  // the backend keeps the stored file when the field is absent, and re-fetching cross-origin
-  // fails CORS in production on /storage/*.
-  if (!preview.startsWith('data:')) return
-  const blob = await urlToBlob(preview)
+  let blob: Blob | null = null
+  if (preview.startsWith('data:')) {
+    // Freshly picked file from the file input — convert the data URL via fetch().
+    blob = await urlToBlob(preview)
+  } else {
+    // Existing backend URL (e.g. /storage/*). Use the canvas path to bypass the
+    // CORS preflight that fetch() triggers, so the edit flow keeps working.
+    blob = await imageUrlToBlobViaCanvas(preview, 'image/png')
+  }
   if (!blob) return
   const ext = extensionForMime(blob.type || 'image/png')
   const filename = `${field}.${ext}`
