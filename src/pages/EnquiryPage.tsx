@@ -94,9 +94,9 @@ const EnquiryPage = () => {
     if (!searchTerm) return enquiries
     return enquiries.filter(
       (e) =>
-        e.from.toLowerCase().includes(searchTerm) ||
         e.subject.toLowerCase().includes(searchTerm) ||
-        e.body.toLowerCase().includes(searchTerm),
+        e.from.toLowerCase().includes(searchTerm) ||
+        e.to.toLowerCase().includes(searchTerm),
     )
   }, [enquiries, searchTerm])
 
@@ -185,7 +185,7 @@ const EnquiryPage = () => {
                 onChange={(event: ChangeEvent<HTMLInputElement>) =>
                   setSearchInput(event.target.value)
                 }
-                placeholder="Search mail"
+                placeholder="Search subject, from, or to…"
                 className="h-9 w-full rounded-xl border border-border/60 bg-background pl-9 pr-9 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent focus:ring-1 focus:ring-accent"
               />
               {searchInput ? (
