@@ -43,18 +43,6 @@ const STATUS_CLASSES: Record<JobStatus, string> = {
   draft: 'bg-warning/15 text-warning',
 }
 
-const formatSalary = (post: JobPost): string => {
-  if (post.salaryMin == null && post.salaryMax == null) return 'Not disclosed'
-  const fmt = (n: number) =>
-    n >= 100000
-      ? `${post.salaryCurrency} ${(n / 100000).toFixed(1).replace(/\.0$/, '')}L`
-      : `${post.salaryCurrency} ${n.toLocaleString()}`
-  if (post.salaryMin != null && post.salaryMax != null) {
-    return `${fmt(post.salaryMin)} – ${fmt(post.salaryMax)}`
-  }
-  return fmt(post.salaryMin ?? post.salaryMax ?? 0)
-}
-
 const formatDate = (iso: string | null): string => {
   if (!iso) return '—'
   const date = new Date(iso)
@@ -133,29 +121,31 @@ const JobPostsTab = ({
 
   const handleFormSubmit = (values: JobPostFormValues) => {
     const cleanList = (list: string[]) => list.map((v) => v.trim()).filter(Boolean)
-    const salaryMin =
-      values.salaryMin.trim() === '' ? null : Number(values.salaryMin)
-    const salaryMax =
-      values.salaryMax.trim() === '' ? null : Number(values.salaryMax)
     const nowIso = new Date().toISOString()
+
+    const shared = {
+      title: values.title.trim(),
+      department: values.department.trim(),
+      location: combineLocation(values.workMode, values.city),
+      employmentType: values.employmentType,
+      aboutCompany: values.aboutCompany.trim(),
+      whatYoullDo: {
+        intro: values.whatYoullDoIntro.trim(),
+        items: cleanList(values.whatYoullDoItems),
+      },
+      whatYouBring: cleanList(values.whatYouBring),
+      whyJoin: cleanList(values.whyJoin),
+      ctaHeading: values.ctaHeading.trim(),
+      ctaSubtext: values.ctaSubtext.trim(),
+      status: values.status,
+      deadlineAt: fromDateInput(values.deadlineAt),
+    }
 
     if (formMode === 'create') {
       const newPost: JobPost = {
         id: `job-${Date.now()}`,
-        title: values.title.trim(),
-        department: values.department.trim(),
-        location: combineLocation(values.workMode, values.city),
-        employmentType: values.employmentType,
-        shortDescription: values.shortDescription.trim(),
-        description: values.description.trim(),
-        requirements: cleanList(values.requirements),
-        responsibilities: cleanList(values.responsibilities),
-        salaryMin,
-        salaryMax,
-        salaryCurrency: values.salaryCurrency,
-        status: values.status,
+        ...shared,
         postedAt: fromDateInput(values.postedAt) ?? nowIso,
-        deadlineAt: fromDateInput(values.deadlineAt),
       }
       setPosts((prev) => [newPost, ...prev])
       setSelectedPostId(newPost.id)
@@ -165,20 +155,8 @@ const JobPostsTab = ({
           p.id === editingPostId
             ? {
                 ...p,
-                title: values.title.trim(),
-                department: values.department.trim(),
-                location: combineLocation(values.workMode, values.city),
-                employmentType: values.employmentType,
-                shortDescription: values.shortDescription.trim(),
-                description: values.description.trim(),
-                requirements: cleanList(values.requirements),
-                responsibilities: cleanList(values.responsibilities),
-                salaryMin,
-                salaryMax,
-                salaryCurrency: values.salaryCurrency,
-                status: values.status,
+                ...shared,
                 postedAt: fromDateInput(values.postedAt) ?? p.postedAt,
-                deadlineAt: fromDateInput(values.deadlineAt),
               }
             : p,
         ),
@@ -314,8 +292,8 @@ const JobPostsTab = ({
                   </span>
                 </div>
                 <p className="mt-0.5 text-[11px] text-text-muted">
-                  {selected.department} · {selected.location} ·{' '}
-                  {EMPLOYMENT_TYPE_LABELS[selected.employmentType] ?? selected.employmentType}
+                  {EMPLOYMENT_TYPE_LABELS[selected.employmentType] ?? selected.employmentType}{' '}
+                  | {selected.department} | {selected.location}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
@@ -336,8 +314,60 @@ const JobPostsTab = ({
               </div>
             </div>
 
-            <div className="flex-1 space-y-5 overflow-y-auto p-6 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <section className="flex flex-wrap gap-3 text-xs text-text-muted">
+            <div className="flex-1 space-y-7 overflow-y-auto p-6 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {selected.aboutCompany ? (
+                <section>
+                  <h3 className="text-base font-semibold text-text-primary">
+                    About {selected.department || 'the company'}
+                  </h3>
+                  <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-text-secondary/90">
+                    {selected.aboutCompany}
+                  </p>
+                </section>
+              ) : null}
+
+              <section>
+                <h3 className="text-base font-semibold text-text-primary">What You’ll Do</h3>
+                {selected.whatYoullDo.intro ? (
+                  <p className="mt-2 text-sm leading-relaxed text-text-secondary/90">
+                    {selected.whatYoullDo.intro}
+                  </p>
+                ) : null}
+                {selected.whatYoullDo.items.length ? (
+                  <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-text-secondary/85">
+                    {selected.whatYoullDo.items.map((item, idx) => (
+                      <li key={idx}>{item}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </section>
+
+              {selected.whatYouBring.length ? (
+                <section>
+                  <h3 className="text-base font-semibold text-text-primary">What You Bring</h3>
+                  <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-text-secondary/85">
+                    {selected.whatYouBring.map((item, idx) => (
+                      <li key={idx}>{item}</li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+
+              {selected.whyJoin.length ? (
+                <section>
+                  <h3 className="text-base font-semibold text-text-primary">
+                    Why {selected.department || 'join us'}?
+                  </h3>
+                  <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-text-secondary/85">
+                    {selected.whyJoin.map((item, idx) => (
+                      <li key={idx}>{item}</li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+
+              {/* Admin-only meta (posted/deadline) kept small at the bottom */}
+              <section className="flex flex-wrap gap-3 border-t border-border/60 pt-4 text-[11px] text-text-muted">
                 <span>
                   <span className="font-semibold text-text-secondary">Posted:</span>{' '}
                   {formatDate(selected.postedAt)}
@@ -346,55 +376,7 @@ const JobPostsTab = ({
                   <span className="font-semibold text-text-secondary">Deadline:</span>{' '}
                   {formatDate(selected.deadlineAt)}
                 </span>
-                <span>
-                  <span className="font-semibold text-text-secondary">Salary:</span>{' '}
-                  {formatSalary(selected)}
-                </span>
               </section>
-
-              <section>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
-                  Summary
-                </p>
-                <p className="mt-1 text-sm text-text-secondary">
-                  {selected.shortDescription}
-                </p>
-              </section>
-
-              <section>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
-                  Description
-                </p>
-                <p className="mt-1 whitespace-pre-line text-sm text-text-secondary/85">
-                  {selected.description}
-                </p>
-              </section>
-
-              {selected.responsibilities.length ? (
-                <section>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
-                    Responsibilities
-                  </p>
-                  <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-text-secondary/85">
-                    {selected.responsibilities.map((item, idx) => (
-                      <li key={idx}>{item}</li>
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
-
-              {selected.requirements.length ? (
-                <section>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
-                    Requirements
-                  </p>
-                  <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-text-secondary/85">
-                    {selected.requirements.map((item, idx) => (
-                      <li key={idx}>{item}</li>
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
             </div>
           </>
         ) : (

@@ -24,48 +24,16 @@ export type JobPostFormValues = {
   workMode: WorkMode
   city: string
   employmentType: EmploymentType
-  shortDescription: string
-  description: string
-  requirements: string[]
-  responsibilities: string[]
-  salaryMin: string
-  salaryMax: string
-  salaryCurrency: string
+  aboutCompany: string
+  whatYoullDoIntro: string
+  whatYoullDoItems: string[]
+  whatYouBring: string[]
+  whyJoin: string[]
+  ctaHeading: string
+  ctaSubtext: string
   status: JobStatus
   postedAt: string
   deadlineAt: string
-}
-
-const WORK_MODES: { value: WorkMode; label: string }[] = [
-  { value: 'remote', label: 'Remote' },
-  { value: 'hybrid', label: 'Hybrid' },
-  { value: 'onsite', label: 'In office' },
-]
-
-// Convert a stored location string back into workMode + city for edit pre-fill.
-const parseLocation = (location: string): { workMode: WorkMode; city: string } => {
-  const trimmed = (location || '').trim()
-  const lower = trimmed.toLowerCase()
-  if (!trimmed) return { workMode: 'remote', city: '' }
-  if (lower === 'remote') return { workMode: 'remote', city: '' }
-  if (lower.startsWith('hybrid')) {
-    const rest = trimmed.replace(/^hybrid\s*[—\-·,:]?\s*/i, '').trim()
-    return { workMode: 'hybrid', city: rest }
-  }
-  if (lower.startsWith('in office') || lower.startsWith('in-office') || lower.startsWith('onsite')) {
-    const rest = trimmed.replace(/^(in[\s-]?office|onsite)\s*[—\-·,:]?\s*/i, '').trim()
-    return { workMode: 'onsite', city: rest }
-  }
-  // Plain city string from older data → assume onsite.
-  return { workMode: 'onsite', city: trimmed }
-}
-
-// Combine workMode + city back into a single location string.
-export const combineLocation = (workMode: WorkMode, city: string): string => {
-  const trimmed = city.trim()
-  if (workMode === 'remote') return 'Remote'
-  if (workMode === 'hybrid') return trimmed ? `Hybrid — ${trimmed}` : 'Hybrid'
-  return trimmed || 'In office'
 }
 
 const EMPLOYMENT_TYPES: { value: EmploymentType; label: string }[] = [
@@ -80,6 +48,41 @@ const JOB_STATUSES: { value: JobStatus; label: string }[] = [
   { value: 'closed', label: 'Closed' },
   { value: 'draft', label: 'Draft' },
 ]
+
+const WORK_MODES: { value: WorkMode; label: string }[] = [
+  { value: 'remote', label: 'Remote' },
+  { value: 'hybrid', label: 'Hybrid' },
+  { value: 'onsite', label: 'In office' },
+]
+
+const parseLocation = (location: string): { workMode: WorkMode; city: string } => {
+  const trimmed = (location || '').trim()
+  const lower = trimmed.toLowerCase()
+  if (!trimmed) return { workMode: 'remote', city: '' }
+  if (lower === 'remote') return { workMode: 'remote', city: '' }
+  if (lower.startsWith('hybrid')) {
+    const rest = trimmed.replace(/^hybrid\s*[—\-·,:]?\s*/i, '').trim()
+    return { workMode: 'hybrid', city: rest }
+  }
+  if (
+    lower.startsWith('in office') ||
+    lower.startsWith('in-office') ||
+    lower.startsWith('onsite')
+  ) {
+    const rest = trimmed
+      .replace(/^(in[\s-]?office|onsite)\s*[—\-·,:]?\s*/i, '')
+      .trim()
+    return { workMode: 'onsite', city: rest }
+  }
+  return { workMode: 'onsite', city: trimmed }
+}
+
+export const combineLocation = (workMode: WorkMode, city: string): string => {
+  const trimmed = city.trim()
+  if (workMode === 'remote') return 'Remote'
+  if (workMode === 'hybrid') return trimmed ? `Hybrid — ${trimmed}` : 'Hybrid'
+  return trimmed || 'In office'
+}
 
 const toDateInput = (iso: string | null): string => {
   if (!iso) return ''
@@ -97,13 +100,13 @@ const emptyValues = (): JobPostFormValues => ({
   workMode: 'remote',
   city: '',
   employmentType: 'full-time',
-  shortDescription: '',
-  description: '',
-  requirements: [''],
-  responsibilities: [''],
-  salaryMin: '',
-  salaryMax: '',
-  salaryCurrency: 'INR',
+  aboutCompany: '',
+  whatYoullDoIntro: '',
+  whatYoullDoItems: [''],
+  whatYouBring: [''],
+  whyJoin: [''],
+  ctaHeading: '',
+  ctaSubtext: '',
   status: 'open',
   postedAt: toDateInput(new Date().toISOString()),
   deadlineAt: '',
@@ -117,15 +120,15 @@ const postToValues = (post: JobPost): JobPostFormValues => {
     workMode,
     city,
     employmentType: post.employmentType,
-    shortDescription: post.shortDescription,
-    description: post.description,
-    requirements: post.requirements.length ? [...post.requirements] : [''],
-    responsibilities: post.responsibilities.length
-      ? [...post.responsibilities]
+    aboutCompany: post.aboutCompany,
+    whatYoullDoIntro: post.whatYoullDo.intro,
+    whatYoullDoItems: post.whatYoullDo.items.length
+      ? [...post.whatYoullDo.items]
       : [''],
-    salaryMin: post.salaryMin == null ? '' : String(post.salaryMin),
-    salaryMax: post.salaryMax == null ? '' : String(post.salaryMax),
-    salaryCurrency: post.salaryCurrency,
+    whatYouBring: post.whatYouBring.length ? [...post.whatYouBring] : [''],
+    whyJoin: post.whyJoin.length ? [...post.whyJoin] : [''],
+    ctaHeading: post.ctaHeading,
+    ctaSubtext: post.ctaSubtext,
     status: post.status,
     postedAt: toDateInput(post.postedAt),
     deadlineAt: toDateInput(post.deadlineAt),
@@ -136,26 +139,32 @@ const steps = [
   {
     id: 'basics',
     label: 'Basics',
-    description: 'Title, department, location, and employment type.',
+    description: 'Title, department, work mode, city, and employment type.',
   },
   {
-    id: 'description',
-    label: 'Description',
-    description: 'Summary and full role description.',
+    id: 'story',
+    label: 'About & What You’ll Do',
+    description: 'Intro paragraph and the day-to-day.',
   },
   {
-    id: 'lists',
-    label: 'Responsibilities & requirements',
-    description: 'What the person will own and what they need.',
+    id: 'fit',
+    label: 'What You Bring & Why Join',
+    description: 'Requirements and culture highlights.',
   },
   {
     id: 'meta',
-    label: 'Compensation & status',
-    description: 'Salary, dates, and whether the role is live.',
+    label: 'CTA & admin info',
+    description: 'Closing call-to-action and posting status.',
   },
 ]
 
-type FieldErrorKey = keyof JobPostFormValues
+type FieldErrorKey =
+  | keyof JobPostFormValues
+  | 'whatYoullDoItemsGroup'
+  | 'whatYouBringGroup'
+  | 'whyJoinGroup'
+
+type ListField = 'whatYoullDoItems' | 'whatYouBring' | 'whyJoin'
 
 const JobPostFormModal = ({
   isOpen,
@@ -179,30 +188,26 @@ const JobPostFormModal = ({
     setActiveStepIndex(0)
   }, [initialPost, isOpen])
 
-  const setField = <K extends FieldErrorKey>(field: K, value: JobPostFormValues[K]) => {
+  const setField = <K extends keyof JobPostFormValues>(
+    field: K,
+    value: JobPostFormValues[K],
+  ) => {
     setValues((prev) => ({ ...prev, [field]: value }))
     setErrors((prev) => ({ ...prev, [field]: undefined }))
   }
 
-  const updateListItem = (
-    field: 'requirements' | 'responsibilities',
-    index: number,
-    value: string,
-  ) => {
+  const updateListItem = (field: ListField, index: number, value: string) => {
     setValues((prev) => ({
       ...prev,
       [field]: prev[field].map((item, i) => (i === index ? value : item)),
     }))
   }
 
-  const addListItem = (field: 'requirements' | 'responsibilities') => {
+  const addListItem = (field: ListField) => {
     setValues((prev) => ({ ...prev, [field]: [...prev[field], ''] }))
   }
 
-  const removeListItem = (
-    field: 'requirements' | 'responsibilities',
-    index: number,
-  ) => {
+  const removeListItem = (field: ListField, index: number) => {
     setValues((prev) => ({
       ...prev,
       [field]:
@@ -220,18 +225,22 @@ const JobPostFormModal = ({
       }
     }
     if (index === 1) {
-      if (!values.shortDescription.trim())
-        next.shortDescription = 'Short description is required.'
-      if (!values.description.trim()) next.description = 'Description is required.'
+      if (!values.aboutCompany.trim())
+        next.aboutCompany = 'About section is required.'
+      if (!values.whatYoullDoIntro.trim())
+        next.whatYoullDoIntro = 'Intro sentence is required.'
+      const cleaned = values.whatYoullDoItems.map((v) => v.trim()).filter(Boolean)
+      if (cleaned.length === 0)
+        next.whatYoullDoItemsGroup = 'Add at least one item.'
+    }
+    if (index === 2) {
+      const bring = values.whatYouBring.map((v) => v.trim()).filter(Boolean)
+      const why = values.whyJoin.map((v) => v.trim()).filter(Boolean)
+      if (bring.length === 0) next.whatYouBringGroup = 'Add at least one item.'
+      if (why.length === 0) next.whyJoinGroup = 'Add at least one reason.'
     }
     if (index === 3) {
-      if (values.salaryMin && values.salaryMax) {
-        const min = Number(values.salaryMin)
-        const max = Number(values.salaryMax)
-        if (Number.isFinite(min) && Number.isFinite(max) && min > max) {
-          next.salaryMax = 'Max must be greater than or equal to min.'
-        }
-      }
+      if (!values.ctaHeading.trim()) next.ctaHeading = 'CTA heading is required.'
     }
     return next
   }
@@ -240,7 +249,6 @@ const JobPostFormModal = ({
     event.preventDefault()
     setFormError(null)
 
-    // Advance steps 0/1/2 → next; step 3 is final submit
     if (activeStepIndex < steps.length - 1) {
       const stepErrors = validateStep(activeStepIndex)
       if (Object.values(stepErrors).some(Boolean)) {
@@ -252,7 +260,6 @@ const JobPostFormModal = ({
       return
     }
 
-    // Final submit — re-validate everything
     const allErrors: Partial<Record<FieldErrorKey, string>> = {
       ...validateStep(0),
       ...validateStep(1),
@@ -297,8 +304,7 @@ const JobPostFormModal = ({
             </p>
             <h2 className="mt-3 text-3xl font-semibold">Job Builder</h2>
             <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-              Fill in the basics, write the description, spell out responsibilities, and set
-              compensation.
+              Fill in the basics, tell the story, and close with a clear call to action.
             </p>
           </div>
           <ol className="mt-10 space-y-7">
@@ -327,7 +333,9 @@ const JobPostFormModal = ({
                   ) : null}
                   <p
                     className={`text-sm font-semibold ${
-                      isCurrent ? 'text-slate-900 dark:text-slate-50' : 'text-slate-600 dark:text-slate-300'
+                      isCurrent
+                        ? 'text-slate-900 dark:text-slate-50'
+                        : 'text-slate-600 dark:text-slate-300'
                     }`}
                   >
                     {step.label}
@@ -341,7 +349,10 @@ const JobPostFormModal = ({
           </ol>
         </aside>
 
-        <form onSubmit={handleSubmit} className="flex flex-1 flex-col bg-white dark:bg-slate-950">
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-1 flex-col bg-white dark:bg-slate-950"
+        >
           {/* Header */}
           <header className="border-b border-slate-200 px-5 py-5 sm:px-8 sm:py-6 dark:border-slate-800">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -389,7 +400,7 @@ const JobPostFormModal = ({
                       onChange={(e) => setField('title', e.target.value)}
                       className={inputClass}
                       maxLength={120}
-                      placeholder="Senior Product Designer"
+                      placeholder="Brand Communication Manager"
                     />
                     {errors.title ? <p className={errorClass}>{errors.title}</p> : null}
                   </div>
@@ -401,7 +412,7 @@ const JobPostFormModal = ({
                       onChange={(e) => setField('department', e.target.value)}
                       className={inputClass}
                       maxLength={60}
-                      placeholder="Design"
+                      placeholder="Brand Solutions"
                     />
                     {errors.department ? (
                       <p className={errorClass}>{errors.department}</p>
@@ -413,9 +424,7 @@ const JobPostFormModal = ({
                     <label className={labelClass}>Work mode *</label>
                     <select
                       value={values.workMode}
-                      onChange={(e) =>
-                        setField('workMode', e.target.value as WorkMode)
-                      }
+                      onChange={(e) => setField('workMode', e.target.value as WorkMode)}
                       className={inputClass}
                     >
                       {WORK_MODES.map((w) => (
@@ -438,13 +447,11 @@ const JobPostFormModal = ({
                       placeholder={
                         values.workMode === 'remote'
                           ? 'Anywhere'
-                          : 'Bangalore, Hyderabad…'
+                          : 'Bengaluru, Hyderabad…'
                       }
                       disabled={values.workMode === 'remote'}
                     />
-                    {errors.city ? (
-                      <p className={errorClass}>{errors.city}</p>
-                    ) : null}
+                    {errors.city ? <p className={errorClass}>{errors.city}</p> : null}
                   </div>
                   <div className="space-y-1.5">
                     <label className={labelClass}>Employment type</label>
@@ -467,97 +474,94 @@ const JobPostFormModal = ({
             ) : null}
 
             {activeStepIndex === 1 ? (
-              <div className="space-y-5">
+              <div className="space-y-6">
                 <div className="space-y-1.5">
-                  <label className={labelClass}>Short description *</label>
-                  <input
-                    type="text"
-                    value={values.shortDescription}
-                    onChange={(e) => setField('shortDescription', e.target.value)}
-                    className={inputClass}
-                    maxLength={160}
-                    placeholder="One-line teaser shown on the card."
-                  />
-                  {errors.shortDescription ? (
-                    <p className={errorClass}>{errors.shortDescription}</p>
-                  ) : null}
-                </div>
-                <div className="space-y-1.5">
-                  <label className={labelClass}>Full description *</label>
+                  <label className={labelClass}>About the company *</label>
                   <textarea
-                    value={values.description}
-                    onChange={(e) => setField('description', e.target.value)}
-                    rows={10}
+                    value={values.aboutCompany}
+                    onChange={(e) => setField('aboutCompany', e.target.value)}
+                    rows={5}
                     className={textareaClass}
-                    placeholder="Describe the role, the team, and the impact this person will have."
+                    placeholder="Who you are, what you do, and the vibe of the place."
                   />
-                  {errors.description ? (
-                    <p className={errorClass}>{errors.description}</p>
+                  {errors.aboutCompany ? (
+                    <p className={errorClass}>{errors.aboutCompany}</p>
                   ) : null}
                 </div>
+                <div className="space-y-1.5">
+                  <label className={labelClass}>What You’ll Do — intro *</label>
+                  <textarea
+                    value={values.whatYoullDoIntro}
+                    onChange={(e) => setField('whatYoullDoIntro', e.target.value)}
+                    rows={3}
+                    className={textareaClass}
+                    placeholder="One or two lines setting up the day-to-day."
+                  />
+                  {errors.whatYoullDoIntro ? (
+                    <p className={errorClass}>{errors.whatYoullDoIntro}</p>
+                  ) : null}
+                </div>
+                <ListEditor
+                  label="What You’ll Do — items"
+                  items={values.whatYoullDoItems}
+                  onChange={(i, v) => updateListItem('whatYoullDoItems', i, v)}
+                  onAdd={() => addListItem('whatYoullDoItems')}
+                  onRemove={(i) => removeListItem('whatYoullDoItems', i)}
+                  placeholder="e.g. Client & Team Coordination"
+                  error={errors.whatYoullDoItemsGroup}
+                />
               </div>
             ) : null}
 
             {activeStepIndex === 2 ? (
               <div className="space-y-8">
                 <ListEditor
-                  label="Responsibilities"
-                  items={values.responsibilities}
-                  onChange={(i, v) => updateListItem('responsibilities', i, v)}
-                  onAdd={() => addListItem('responsibilities')}
-                  onRemove={(i) => removeListItem('responsibilities', i)}
-                  placeholder="e.g. Lead architecture reviews"
+                  label="What You Bring"
+                  items={values.whatYouBring}
+                  onChange={(i, v) => updateListItem('whatYouBring', i, v)}
+                  onAdd={() => addListItem('whatYouBring')}
+                  onRemove={(i) => removeListItem('whatYouBring', i)}
+                  placeholder="e.g. 2+ years in brand communication"
+                  error={errors.whatYouBringGroup}
                 />
                 <ListEditor
-                  label="Requirements"
-                  items={values.requirements}
-                  onChange={(i, v) => updateListItem('requirements', i, v)}
-                  onAdd={() => addListItem('requirements')}
-                  onRemove={(i) => removeListItem('requirements', i)}
-                  placeholder="e.g. 5+ years of React experience"
+                  label="Why Join?"
+                  items={values.whyJoin}
+                  onChange={(i, v) => updateListItem('whyJoin', i, v)}
+                  onAdd={() => addListItem('whyJoin')}
+                  onRemove={(i) => removeListItem('whyJoin', i)}
+                  placeholder="e.g. Work on bold brands and high-impact campaigns"
+                  error={errors.whyJoinGroup}
                 />
               </div>
             ) : null}
 
             {activeStepIndex === 3 ? (
               <div className="space-y-6">
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="space-y-1.5">
-                    <label className={labelClass}>Salary min</label>
-                    <input
-                      type="number"
-                      value={values.salaryMin}
-                      onChange={(e) => setField('salaryMin', e.target.value)}
-                      className={inputClass}
-                      placeholder="e.g. 1500000"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className={labelClass}>Salary max</label>
-                    <input
-                      type="number"
-                      value={values.salaryMax}
-                      onChange={(e) => setField('salaryMax', e.target.value)}
-                      className={inputClass}
-                      placeholder="e.g. 2500000"
-                    />
-                    {errors.salaryMax ? (
-                      <p className={errorClass}>{errors.salaryMax}</p>
-                    ) : null}
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className={labelClass}>Currency</label>
-                    <select
-                      value={values.salaryCurrency}
-                      onChange={(e) => setField('salaryCurrency', e.target.value)}
-                      className={inputClass}
-                    >
-                      <option value="INR">INR</option>
-                      <option value="USD">USD</option>
-                      <option value="EUR">EUR</option>
-                      <option value="GBP">GBP</option>
-                    </select>
-                  </div>
+                <div className="space-y-1.5">
+                  <label className={labelClass}>CTA heading *</label>
+                  <input
+                    type="text"
+                    value={values.ctaHeading}
+                    onChange={(e) => setField('ctaHeading', e.target.value)}
+                    className={inputClass}
+                    maxLength={120}
+                    placeholder="Ready to join the chaos?"
+                  />
+                  {errors.ctaHeading ? (
+                    <p className={errorClass}>{errors.ctaHeading}</p>
+                  ) : null}
+                </div>
+                <div className="space-y-1.5">
+                  <label className={labelClass}>CTA subtext</label>
+                  <input
+                    type="text"
+                    value={values.ctaSubtext}
+                    onChange={(e) => setField('ctaSubtext', e.target.value)}
+                    className={inputClass}
+                    maxLength={200}
+                    placeholder="Apply now. Let’s build brands that everyone talks about."
+                  />
                 </div>
                 <div className="grid gap-4 md:grid-cols-3">
                   <div className="space-y-1.5">
@@ -656,9 +660,18 @@ type ListEditorProps = {
   onAdd: () => void
   onRemove: (index: number) => void
   placeholder?: string
+  error?: string
 }
 
-const ListEditor = ({ label, items, onChange, onAdd, onRemove, placeholder }: ListEditorProps) => (
+const ListEditor = ({
+  label,
+  items,
+  onChange,
+  onAdd,
+  onRemove,
+  placeholder,
+  error,
+}: ListEditorProps) => (
   <div className="space-y-3">
     <div className="flex items-center justify-between">
       <label className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
@@ -703,6 +716,9 @@ const ListEditor = ({ label, items, onChange, onAdd, onRemove, placeholder }: Li
         </div>
       ))}
     </div>
+    {error ? (
+      <p className="text-xs text-rose-500">{error}</p>
+    ) : null}
   </div>
 )
 

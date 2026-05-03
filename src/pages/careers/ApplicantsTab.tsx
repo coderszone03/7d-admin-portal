@@ -12,14 +12,6 @@ type ApplicantsTabProps = {
   onJumpToPost: (postId: string) => void
 }
 
-const APPLICANT_STATUSES: { value: ApplicantStatus; label: string }[] = [
-  { value: 'new', label: 'New' },
-  { value: 'reviewing', label: 'Reviewing' },
-  { value: 'interviewed', label: 'Interviewed' },
-  { value: 'rejected', label: 'Rejected' },
-  { value: 'hired', label: 'Hired' },
-]
-
 const STATUS_CLASSES: Record<ApplicantStatus, string> = {
   new: 'bg-accent/15 text-accent',
   reviewing: 'bg-warning/15 text-warning',
@@ -149,13 +141,6 @@ const ApplicantsTab = ({
         prev.map((a) => (a.id === applicant.id ? { ...a, read: true } : a)),
       )
     }
-  }
-
-  const handleStatusChange = (status: ApplicantStatus) => {
-    if (!selected) return
-    setApplicants((prev) =>
-      prev.map((a) => (a.id === selected.id ? { ...a, status } : a)),
-    )
   }
 
   return (
@@ -410,27 +395,16 @@ const ApplicantsTab = ({
                     </button>
                   </div>
 
-                  {/* Status */}
+                  {/* Status (read-only) */}
                   <div className="space-y-2">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
                       Status
                     </p>
-                    <div className="inline-flex flex-wrap items-center gap-1 rounded-lg border border-border/60 bg-background/70 p-1">
-                      {APPLICANT_STATUSES.map((s) => (
-                        <button
-                          key={s.value}
-                          type="button"
-                          onClick={() => handleStatusChange(s.value)}
-                          className={`h-8 rounded-md px-2.5 text-[11px] font-medium transition ${
-                            selected.status === s.value
-                              ? 'bg-accent text-white'
-                              : 'text-text-muted hover:text-text-secondary'
-                          }`}
-                        >
-                          {s.label}
-                        </button>
-                      ))}
-                    </div>
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${STATUS_CLASSES[selected.status]}`}
+                    >
+                      {selected.status}
+                    </span>
                   </div>
 
                   {/* Cover note */}

@@ -1,19 +1,23 @@
 export type EmploymentType = 'full-time' | 'part-time' | 'contract' | 'internship'
 export type JobStatus = 'open' | 'closed' | 'draft'
 
+export type WhatYoullDo = {
+  intro: string
+  items: string[]
+}
+
 export type JobPost = {
   id: string
   title: string
   department: string
   location: string
   employmentType: EmploymentType
-  shortDescription: string
-  description: string
-  requirements: string[]
-  responsibilities: string[]
-  salaryMin: number | null
-  salaryMax: number | null
-  salaryCurrency: string
+  aboutCompany: string
+  whatYoullDo: WhatYoullDo
+  whatYouBring: string[]
+  whyJoin: string[]
+  ctaHeading: string
+  ctaSubtext: string
   status: JobStatus
   postedAt: string
   deadlineAt: string | null
@@ -24,6 +28,9 @@ const now = Date.now()
 const iso = (offsetMs: number) => new Date(now - offsetMs).toISOString()
 const future = (days: number) => new Date(now + days * DAY).toISOString()
 
+const ABOUT_7D =
+  "We're a no-fluff, all-ideas creative agency that blends branding, marketing, and design to solve business problems. At 7D Design, we create campaigns that hit the sweet spot between strategy and storytelling. If you're into bold ideas, solid execution, and memes that convert — you're in the right place."
+
 export const JOB_POSTS: JobPost[] = [
   {
     id: 'job-1',
@@ -31,27 +38,33 @@ export const JOB_POSTS: JobPost[] = [
     department: 'Design',
     location: 'Remote',
     employmentType: 'full-time',
-    shortDescription:
-      'Lead end-to-end product design for our flagship SaaS platform.',
-    description:
-      'We are looking for a Senior Product Designer who will drive the vision and craft of our flagship product. You will work closely with product managers and engineers to ship thoughtful, well-researched features that customers love. This role owns everything from discovery through launch and post-launch iteration.',
-    requirements: [
+    aboutCompany: ABOUT_7D,
+    whatYoullDo: {
+      intro:
+        'Lead end-to-end product design for our flagship SaaS platform. Own discovery, shape direction, and ship polished features with product and engineering partners.',
+      items: [
+        'Discovery & User Research',
+        'End-to-End Design Ownership',
+        'Design System Contribution',
+        'Cross-functional Collaboration',
+        'Mentorship & Critique',
+      ],
+    },
+    whatYouBring: [
       '6+ years of product design experience at B2B or B2C SaaS companies',
       'Strong portfolio showcasing end-to-end work, not just final visuals',
       'Fluency with Figma, component libraries, and modern design systems',
       'Comfortable running user research and synthesising insights',
       'Excellent written and verbal communication',
     ],
-    responsibilities: [
-      'Partner with PM and engineering leads on roadmap and scoping',
-      'Own discovery, exploration, and validation for major initiatives',
-      'Deliver high-fidelity designs, prototypes, and production-ready specs',
-      'Evolve our design system alongside other senior designers',
-      'Mentor mid-level designers through critiques and pairing',
+    whyJoin: [
+      'Work on meaningful problems with a small, senior team',
+      'Collaborative, experimental team culture',
+      'Creative freedom and ownership',
+      'Remote-first with flexible hours',
     ],
-    salaryMin: 2500000,
-    salaryMax: 3500000,
-    salaryCurrency: 'INR',
+    ctaHeading: 'Ready to join the chaos?',
+    ctaSubtext: "Apply now. Let's build brands that everyone talks about.",
     status: 'open',
     postedAt: iso(3 * DAY),
     deadlineAt: future(21),
@@ -62,27 +75,34 @@ export const JOB_POSTS: JobPost[] = [
     department: 'Engineering',
     location: 'Bangalore, India',
     employmentType: 'full-time',
-    shortDescription:
-      'Technical lead for our platform team, owning core services and infrastructure.',
-    description:
-      'The Platform team is the backbone of our product — we build the services, pipelines, and internal tooling that the rest of engineering depends on. We are looking for a hands-on lead who can balance technical direction with team mentorship.',
-    requirements: [
+    aboutCompany: ABOUT_7D,
+    whatYoullDo: {
+      intro:
+        'Set technical direction for the Platform team while staying hands-on with code. Balance architecture, mentorship, and shipping.',
+      items: [
+        'Technical Direction & Architecture',
+        'Hands-on Shipping',
+        'Reliability & Observability',
+        'Hiring & Mentorship',
+        'Cross-team Collaboration',
+      ],
+    },
+    whatYouBring: [
       '8+ years of backend engineering, 2+ years in a tech-lead capacity',
-      'Deep experience with at least one of: Go, Rust, or TypeScript (Node)',
+      'Deep experience with Go, Rust, or TypeScript (Node)',
       'Comfortable owning design of distributed systems at scale',
       'Experience running on-call rotations and managing incidents',
       'Strong opinions on code quality, testing, and observability',
     ],
-    responsibilities: [
-      'Set technical direction for the platform team',
-      'Lead architecture reviews and RFC discussions',
-      'Ship code alongside the team — not a pure manager role',
-      'Own reliability, performance, and operational excellence',
-      'Grow and mentor engineers through 1:1s and technical coaching',
+    whyJoin: [
+      'Greenfield platform work with real autonomy',
+      'High-trust team that ships small and often',
+      'Annual learning budget and conference attendance',
+      'Hybrid office in Bangalore, flexible schedule',
     ],
-    salaryMin: 4000000,
-    salaryMax: 6000000,
-    salaryCurrency: 'INR',
+    ctaHeading: 'Build the backbone with us.',
+    ctaSubtext:
+      'Apply now and help shape the systems our whole product depends on.',
     status: 'open',
     postedAt: iso(7 * DAY),
     deadlineAt: future(14),
@@ -93,27 +113,33 @@ export const JOB_POSTS: JobPost[] = [
     department: 'Marketing',
     location: 'Remote',
     employmentType: 'full-time',
-    shortDescription:
-      'Own performance and lifecycle marketing across paid and organic channels.',
-    description:
-      'Own our growth engine end-to-end — from paid acquisition to lifecycle email to on-site conversion. You will work with a small team and have significant ownership of channel strategy and budget allocation.',
-    requirements: [
+    aboutCompany: ABOUT_7D,
+    whatYoullDo: {
+      intro:
+        "Own the growth engine end-to-end — from paid acquisition to lifecycle email to on-site conversion. You'll have real ownership of channel strategy and budget.",
+      items: [
+        'Paid Acquisition (Meta, Google, LinkedIn)',
+        'Lifecycle & Retention Programs',
+        'Conversion Rate Optimisation',
+        'Performance Analytics & Reporting',
+        'Budget Planning',
+      ],
+    },
+    whatYouBring: [
       '5+ years in growth or performance marketing roles',
-      'Proven track record scaling paid channels (Meta, Google, LinkedIn)',
-      'Hands-on with analytics tools (GA4, Mixpanel, Amplitude)',
-      'Strong data and SQL skills — you should be comfortable writing your own queries',
+      'Proven track record scaling paid channels',
+      'Hands-on with GA4, Mixpanel, or Amplitude',
+      'Strong data and SQL skills',
       'Experience with lifecycle tooling (Customer.io, Braze, or similar)',
     ],
-    responsibilities: [
-      'Own growth goals across acquisition, activation, and retention',
-      'Plan and execute campaigns across paid and organic channels',
-      'Partner with product and design on conversion optimisation',
-      'Manage budget allocation and report on performance weekly',
-      'Build out lifecycle journeys and behavioural email programs',
+    whyJoin: [
+      'Significant channel and budget ownership from day one',
+      'Small team, big leverage',
+      'Remote-first, async-friendly',
+      'Yearly performance bonus tied to outcomes',
     ],
-    salaryMin: 1800000,
-    salaryMax: 2600000,
-    salaryCurrency: 'INR',
+    ctaHeading: 'Love numbers and narrative?',
+    ctaSubtext: 'Apply now. Let’s grow something that converts.',
     status: 'open',
     postedAt: iso(5 * DAY),
     deadlineAt: future(10),
@@ -124,27 +150,33 @@ export const JOB_POSTS: JobPost[] = [
     department: 'Engineering',
     location: 'Hyderabad, India',
     employmentType: 'full-time',
-    shortDescription:
-      'Build delightful, accessible user interfaces with React and TypeScript.',
-    description:
-      'Join our frontend guild building our web app used by thousands of teams. We care deeply about craft, accessibility, and performance. Expect to collaborate daily with designers and ship user-facing features regularly.',
-    requirements: [
+    aboutCompany: ABOUT_7D,
+    whatYoullDo: {
+      intro:
+        'Ship delightful, accessible user interfaces with React and TypeScript. Collaborate closely with designers and care deeply about craft, a11y, and performance.',
+      items: [
+        'User-facing Feature Delivery',
+        'Design Collaboration',
+        'Accessibility & Performance',
+        'Design System Contributions',
+        'Code Review & Quality',
+      ],
+    },
+    whatYouBring: [
       '3+ years building production React applications',
       'Strong TypeScript skills',
       'Solid understanding of browser performance and accessibility',
       'Experience with modern frontend tooling (Vite, Tailwind, React Query)',
-      'You have shipped features that real users use — bonus for open-source work',
+      'Shipped features that real users use',
     ],
-    responsibilities: [
-      'Ship polished user-facing features in our web app',
-      'Collaborate with designers on interaction details',
-      'Improve performance, accessibility, and code health',
-      'Participate in design and code review',
-      'Contribute to our shared component library',
+    whyJoin: [
+      'Ship every week with a tight feedback loop',
+      'Design and engineering in the same room',
+      'Home-office setup stipend',
+      'Hyderabad office with remote flexibility',
     ],
-    salaryMin: 1500000,
-    salaryMax: 2400000,
-    salaryCurrency: 'INR',
+    ctaHeading: 'Care about craft?',
+    ctaSubtext: "Apply now. We'll talk about the details that matter.",
     status: 'open',
     postedAt: iso(2 * DAY),
     deadlineAt: future(18),
@@ -155,25 +187,31 @@ export const JOB_POSTS: JobPost[] = [
     department: 'Design',
     location: 'Remote',
     employmentType: 'internship',
-    shortDescription:
-      'A six-month paid internship for emerging designers looking for real-world shipping experience.',
-    description:
-      'Our internship program pairs you with a senior designer and gives you a real team to ship with. You will own small-to-medium features end-to-end, with coaching, critique, and mentorship every step. Most interns leave with a full-time offer.',
-    requirements: [
+    aboutCompany: ABOUT_7D,
+    whatYoullDo: {
+      intro:
+        "Pair with a senior designer and own small-to-medium features end-to-end. You'll get coaching, critique, and a real team to ship with.",
+      items: [
+        'Live Product Work',
+        'Research & Synthesis',
+        'Design System Contributions',
+        'Presenting in Critiques',
+      ],
+    },
+    whatYouBring: [
       'Final-year student or recent graduate in design or a related field',
       'A strong portfolio showing process, not just polish',
       'Curiosity, humility, and strong written communication',
       'Eagerness to learn and iterate on feedback',
     ],
-    responsibilities: [
-      'Partner with a senior designer on live product work',
-      'Run small research studies and synthesise findings',
-      'Contribute to component library work',
-      'Present your work in design critiques',
+    whyJoin: [
+      'Paid internship with real shipping responsibilities',
+      'Senior designer as a dedicated mentor',
+      'Most interns leave with a full-time offer',
+      'Fully remote, flexible hours around classes',
     ],
-    salaryMin: 50000,
-    salaryMax: 70000,
-    salaryCurrency: 'INR',
+    ctaHeading: 'Just starting out?',
+    ctaSubtext: 'Apply now. Bring your curiosity — we’ll handle the rest.',
     status: 'open',
     postedAt: iso(1 * DAY),
     deadlineAt: future(30),
@@ -184,25 +222,31 @@ export const JOB_POSTS: JobPost[] = [
     department: 'Marketing',
     location: 'Remote',
     employmentType: 'contract',
-    shortDescription:
-      'Short-term engagement to build a content strategy and production plan for Q3.',
-    description:
-      'We are looking for an experienced content strategist to help us define our editorial voice, set up our publishing cadence, and plan out a quarter of high-quality content. Ideal for someone who has done this kind of work before and enjoys 0→1 projects.',
-    requirements: [
+    aboutCompany: ABOUT_7D,
+    whatYoullDo: {
+      intro:
+        'Help us define editorial voice, set a publishing cadence, and plan out a quarter of high-quality content. Ideal for someone who enjoys 0→1 projects.',
+      items: [
+        'Editorial Voice & Pillars',
+        'Editorial Calendar Planning',
+        'Distribution & Repurposing',
+        'Content Performance Measurement',
+      ],
+    },
+    whatYouBring: [
       '7+ years of content or editorial experience',
       'Proven experience shipping content programs at B2B companies',
       'Comfortable with long-form writing and editorial planning',
       'Available for a 3-month engagement, ~30 hours/week',
     ],
-    responsibilities: [
-      'Define editorial voice and content pillars',
-      'Build an editorial calendar for Q3',
-      'Partner with growth on distribution and repurposing',
-      'Set up measurement for content performance',
+    whyJoin: [
+      'Focused 3-month engagement with clear outcomes',
+      'Own editorial direction with minimal meetings',
+      'Work async across timezones',
+      'Potential to extend based on fit',
     ],
-    salaryMin: null,
-    salaryMax: null,
-    salaryCurrency: 'USD',
+    ctaHeading: 'Craft stories that land.',
+    ctaSubtext: "Apply now. Let's build the editorial foundation together.",
     status: 'draft',
     postedAt: iso(0),
     deadlineAt: null,
