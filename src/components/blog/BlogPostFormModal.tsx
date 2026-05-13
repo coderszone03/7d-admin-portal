@@ -19,6 +19,7 @@ type BlogFormValues = {
   excerpt: string
   categoryId: string
   status: 0 | 1
+  isPopular: boolean
   authorName: string
   authorRole: string
   readTimeMinutes: number
@@ -68,6 +69,7 @@ const buildInitialValues = (post: BlogPost | null): BlogFormValues => {
       excerpt: '',
       categoryId: '',
       status: 1,
+      isPopular: false,
       authorName: '',
       authorRole: '',
       readTimeMinutes: 2,
@@ -86,6 +88,7 @@ const buildInitialValues = (post: BlogPost | null): BlogFormValues => {
     excerpt: post.excerpt,
     categoryId: post.categoryId,
     status: post.status,
+    isPopular: post.isPopular,
     authorName: post.authorName,
     authorRole: post.authorRole,
     readTimeMinutes: post.readTimeMinutes,
@@ -366,6 +369,7 @@ const BlogPostFormModal = ({
       id: initialPost?.id ?? `blog-${Date.now()}-${Math.random().toString(16).slice(2)}`,
       categoryId: values.categoryId,
       status: values.status,
+      isPopular: values.isPopular,
       title: values.title.trim(),
       slug: values.slug.trim(),
       excerpt: values.excerpt.trim(),
@@ -608,6 +612,32 @@ const BlogPostFormModal = ({
                     </div>
                   </div>
                 </div>
+
+                <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-border/60 bg-background px-4 py-3">
+                  <span className="flex flex-col">
+                    <span className="text-xs font-semibold uppercase tracking-[0.14em] text-text-secondary">
+                      Feature as popular
+                    </span>
+                    <span className="text-[11px] text-text-muted">
+                      Highlights this post on the public site and with a pill in the admin list.
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={values.isPopular}
+                    onClick={() => handleFieldChange('isPopular', !values.isPopular)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition ${
+                      values.isPopular ? 'bg-accent' : 'bg-surface-muted'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${
+                        values.isPopular ? 'translate-x-5' : 'translate-x-0.5'
+                      }`}
+                    />
+                  </button>
+                </label>
 
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">

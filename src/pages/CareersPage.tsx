@@ -1,18 +1,82 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import JobPostsTab from './careers/JobPostsTab'
 import ApplicantsTab from './careers/ApplicantsTab'
-import { JOB_POSTS, type JobPost } from '../assets/constants/jobPosts'
+import type { JobPost } from '../assets/constants/jobPosts'
 import { APPLICANTS, type Applicant } from '../assets/constants/applicants'
+import {
+  createCareer,
+  deleteCareer,
+  fetchCareers,
+  updateCareer,
+} from '../lib/api/careers'
 
 type TabId = 'posts' | 'applicants'
 
 const CareersPage = () => {
-  const [posts, setPosts] = useState<JobPost[]>(() => [...JOB_POSTS])
+  const [posts, setPosts] = useState<JobPost[]>([])
+  const [isLoadingPosts, setIsLoadingPosts] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+
   const [applicants, setApplicants] = useState<Applicant[]>(() => [...APPLICANTS])
   const [activeTab, setActiveTab] = useState<TabId>('posts')
-  const [selectedPostId, setSelectedPostId] = useState<string | null>(
-    () => JOB_POSTS[0]?.id ?? null,
-  )
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null)
+
+  const loadPosts = async () => {
+    setIsLoadingPosts(true)
+    setLoadError(null)
+    try {
+      const { items } = await fetchCareers({ pageSize: 50 })
+      setPosts(items)
+      setSelectedPostId((prev) => {
+        if (prev && items.some((p) => p.id === prev)) return prev
+        return items[0]?.id ?? null
+      })
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Unable to load job posts.')
+    } finally {
+      setIsLoadingPosts(false)
+    }
+  }
+
+  useEffect(() => {
+    let isMounted = true
+    ;(async () => {
+      setIsLoadingPosts(true)
+      setLoadError(null)
+      try {
+        const { items } = await fetchCareers({ pageSize: 50 })
+        if (!isMounted) return
+        setPosts(items)
+        setSelectedPostId((prev) => {
+          if (prev && items.some((p) => p.id === prev)) return prev
+          return items[0]?.id ?? null
+        })
+      } catch (err) {
+        if (!isMounted) return
+        setLoadError(err instanceof Error ? err.message : 'Unable to load job posts.')
+      } finally {
+        if (isMounted) setIsLoadingPosts(false)
+      }
+    })()
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const handleCreate = async (post: JobPost) => {
+    await createCareer(post)
+    await loadPosts()
+  }
+
+  const handleUpdate = async (id: string, post: JobPost) => {
+    await updateCareer(id, post)
+    await loadPosts()
+  }
+
+  const handleDelete = async (id: string) => {
+    await deleteCareer(id)
+    setPosts((prev) => prev.filter((p) => p.id !== id))
+  }
 
   const applicantsCountByPost = useMemo(() => {
     const counts: Record<string, number> = {}
@@ -35,15 +99,13 @@ const CareersPage = () => {
   return (
     <section className="space-y-6">
       <header className="space-y-1">
-        <p className="text-xs uppercase tracking-[0.25em] text-text-muted">
-          Careers
-        </p>
+        <p className="text-xs uppercase tracking-[0.25em] text-text-muted">Careers</p>
         <h1 className="text-2xl font-semibold text-text-secondary">
           Roles &amp; applicants
         </h1>
         <p className="text-sm text-text-muted">
-          Create job postings and triage the applicants coming in. Changes are
-          local to this session for now.
+          Create job postings and triage applicants. Applicants are dummy data until the
+          API is ready.
         </p>
       </header>
 
@@ -111,10 +173,14 @@ const CareersPage = () => {
       {activeTab === 'posts' ? (
         <JobPostsTab
           posts={posts}
-          setPosts={setPosts}
+          isLoading={isLoadingPosts}
+          loadError={loadError}
           applicantsCountByPost={applicantsCountByPost}
           selectedPostId={selectedPostId}
           setSelectedPostId={setSelectedPostId}
+          onCreate={handleCreate}
+          onUpdate={handleUpdate}
+          onDelete={handleDelete}
         />
       ) : (
         <ApplicantsTab

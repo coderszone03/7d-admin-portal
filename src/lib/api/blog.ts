@@ -205,6 +205,10 @@ const normaliseBlogPost = (raw: unknown, fallbackId: string): BlogPost | null =>
   const statusRaw = v.status
   const status: 0 | 1 = statusRaw === 1 || statusRaw === '1' || statusRaw === true ? 1 : 0
 
+  const popularRaw = v.is_popular ?? v.isPopular
+  const isPopular =
+    popularRaw === 1 || popularRaw === '1' || popularRaw === true
+
   const tags = coerceKeywords(v.keywords ?? v.tags)
 
   const inputsRaw = Array.isArray(v.blog_inputs)
@@ -234,6 +238,7 @@ const normaliseBlogPost = (raw: unknown, fallbackId: string): BlogPost | null =>
     id,
     categoryId,
     status,
+    isPopular,
     title,
     slug,
     excerpt,
@@ -316,6 +321,7 @@ type BlogMutationPayload = {
   keywords: string[]
   author: string
   status: 0 | 1
+  is_popular: 0 | 1
 }
 
 const buildPayload = async (
@@ -335,6 +341,7 @@ const buildPayload = async (
     keywords: post.tags.map((t) => t.trim()).filter(Boolean),
     author: joinAuthor(post.authorName, post.authorRole),
     status: post.status,
+    is_popular: post.isPopular ? 1 : 0,
   }
   if (thumbnail || includeThumbnailOnEmpty) {
     payload.thumbnail_file = thumbnail

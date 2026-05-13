@@ -12,8 +12,9 @@ type JobPostFormModalProps = {
   isOpen: boolean
   mode: JobPostFormMode
   initialPost: JobPost | null
+  isSubmitting?: boolean
   onClose: () => void
-  onSubmit: (values: JobPostFormValues) => void
+  onSubmit: (values: JobPostFormValues) => void | Promise<void>
 }
 
 export type WorkMode = 'remote' | 'hybrid' | 'onsite'
@@ -25,16 +26,16 @@ export type JobPostFormValues = {
   city: string
   employmentType: EmploymentType
   aboutCompany: string
+  whatYoullDoSubtitle: string
   whatYoullDoIntro: string
   whatYoullDoItems: string[]
   whatYouBring: string[]
-  whyJoin: string[]
-  ctaHeading: string
-  ctaSubtext: string
+  why7d: string[]
+  readyToJoinDescription: string
   status: JobStatus
-  postedAt: string
-  deadlineAt: string
 }
+
+const MAX_LIST_ITEMS = 10
 
 const EMPLOYMENT_TYPES: { value: EmploymentType; label: string }[] = [
   { value: 'full-time', label: 'Full-time' },
@@ -44,9 +45,9 @@ const EMPLOYMENT_TYPES: { value: EmploymentType; label: string }[] = [
 ]
 
 const JOB_STATUSES: { value: JobStatus; label: string }[] = [
-  { value: 'open', label: 'Open' },
-  { value: 'closed', label: 'Closed' },
   { value: 'draft', label: 'Draft' },
+  { value: 'open', label: 'Published' },
+  { value: 'filled', label: 'Position filled' },
 ]
 
 const WORK_MODES: { value: WorkMode; label: string }[] = [
@@ -84,16 +85,6 @@ export const combineLocation = (workMode: WorkMode, city: string): string => {
   return trimmed || 'In office'
 }
 
-const toDateInput = (iso: string | null): string => {
-  if (!iso) return ''
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return ''
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
-}
-
 const emptyValues = (): JobPostFormValues => ({
   title: '',
   department: '',
@@ -101,15 +92,13 @@ const emptyValues = (): JobPostFormValues => ({
   city: '',
   employmentType: 'full-time',
   aboutCompany: '',
+  whatYoullDoSubtitle: '',
   whatYoullDoIntro: '',
   whatYoullDoItems: [''],
   whatYouBring: [''],
-  whyJoin: [''],
-  ctaHeading: '',
-  ctaSubtext: '',
+  why7d: [''],
+  readyToJoinDescription: '',
   status: 'open',
-  postedAt: toDateInput(new Date().toISOString()),
-  deadlineAt: '',
 })
 
 const postToValues = (post: JobPost): JobPostFormValues => {
@@ -121,17 +110,15 @@ const postToValues = (post: JobPost): JobPostFormValues => {
     city,
     employmentType: post.employmentType,
     aboutCompany: post.aboutCompany,
-    whatYoullDoIntro: post.whatYoullDo.intro,
+    whatYoullDoSubtitle: post.whatYoullDo.subtitle ?? '',
+    whatYoullDoIntro: post.whatYoullDo.intro ?? '',
     whatYoullDoItems: post.whatYoullDo.items.length
       ? [...post.whatYoullDo.items]
       : [''],
     whatYouBring: post.whatYouBring.length ? [...post.whatYouBring] : [''],
-    whyJoin: post.whyJoin.length ? [...post.whyJoin] : [''],
-    ctaHeading: post.ctaHeading,
-    ctaSubtext: post.ctaSubtext,
+    why7d: post.why7d.length ? [...post.why7d] : [''],
+    readyToJoinDescription: post.readyToJoinDescription,
     status: post.status,
-    postedAt: toDateInput(post.postedAt),
-    deadlineAt: toDateInput(post.deadlineAt),
   }
 }
 
@@ -144,17 +131,17 @@ const steps = [
   {
     id: 'story',
     label: 'About & What You’ll Do',
-    description: 'Intro paragraph and the day-to-day.',
+    description: 'Company intro and the day-to-day.',
   },
   {
     id: 'fit',
-    label: 'What You Bring & Why Join',
+    label: 'What You Bring & Why 7D Design',
     description: 'Requirements and culture highlights.',
   },
   {
     id: 'meta',
-    label: 'CTA & admin info',
-    description: 'Closing call-to-action and posting status.',
+    label: 'Ready to join & status',
+    description: 'Closing apply copy and posting status.',
   },
 ]
 
@@ -162,14 +149,15 @@ type FieldErrorKey =
   | keyof JobPostFormValues
   | 'whatYoullDoItemsGroup'
   | 'whatYouBringGroup'
-  | 'whyJoinGroup'
+  | 'why7dGroup'
 
-type ListField = 'whatYoullDoItems' | 'whatYouBring' | 'whyJoin'
+type ListField = 'whatYoullDoItems' | 'whatYouBring' | 'why7d'
 
 const JobPostFormModal = ({
   isOpen,
   mode,
   initialPost,
+  isSubmitting = false,
   onClose,
   onSubmit,
 }: JobPostFormModalProps) => {
@@ -204,7 +192,11 @@ const JobPostFormModal = ({
   }
 
   const addListItem = (field: ListField) => {
-    setValues((prev) => ({ ...prev, [field]: [...prev[field], ''] }))
+    setValues((prev) =>
+      prev[field].length >= MAX_LIST_ITEMS
+        ? prev
+        : { ...prev, [field]: [...prev[field], ''] },
+    )
   }
 
   const removeListItem = (field: ListField, index: number) => {
@@ -227,26 +219,30 @@ const JobPostFormModal = ({
     if (index === 1) {
       if (!values.aboutCompany.trim())
         next.aboutCompany = 'About section is required.'
-      if (!values.whatYoullDoIntro.trim())
-        next.whatYoullDoIntro = 'Intro sentence is required.'
-      const cleaned = values.whatYoullDoItems.map((v) => v.trim()).filter(Boolean)
-      if (cleaned.length === 0)
-        next.whatYoullDoItemsGroup = 'Add at least one item.'
+      const items = values.whatYoullDoItems.map((v) => v.trim()).filter(Boolean)
+      if (items.length > MAX_LIST_ITEMS) {
+        next.whatYoullDoItemsGroup = `Max ${MAX_LIST_ITEMS} items.`
+      }
     }
     if (index === 2) {
       const bring = values.whatYouBring.map((v) => v.trim()).filter(Boolean)
-      const why = values.whyJoin.map((v) => v.trim()).filter(Boolean)
+      const why = values.why7d.map((v) => v.trim()).filter(Boolean)
       if (bring.length === 0) next.whatYouBringGroup = 'Add at least one item.'
-      if (why.length === 0) next.whyJoinGroup = 'Add at least one reason.'
+      if (bring.length > MAX_LIST_ITEMS)
+        next.whatYouBringGroup = `Max ${MAX_LIST_ITEMS} items.`
+      if (why.length === 0) next.why7dGroup = 'Add at least one reason.'
+      if (why.length > MAX_LIST_ITEMS) next.why7dGroup = `Max ${MAX_LIST_ITEMS} items.`
     }
     if (index === 3) {
-      if (!values.ctaHeading.trim()) next.ctaHeading = 'CTA heading is required.'
+      if (!values.readyToJoinDescription.trim())
+        next.readyToJoinDescription = 'Ready-to-join description is required.'
     }
     return next
   }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (isSubmitting) return
     setFormError(null)
 
     if (activeStepIndex < steps.length - 1) {
@@ -280,12 +276,12 @@ const JobPostFormModal = ({
   }
 
   const inputClass =
-    'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[#4f54e0] focus:ring-2 focus:ring-[#4f54e0]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50'
+    'h-11 w-full rounded-xl border border-border/60 bg-surface px-3 text-sm text-text-primary outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20'
   const textareaClass =
-    'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-[#4f54e0] focus:ring-2 focus:ring-[#4f54e0]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50'
+    'w-full rounded-xl border border-border/60 bg-surface px-3 py-2 text-sm text-text-primary outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20'
   const labelClass =
-    'text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400'
-  const errorClass = 'mt-1 text-xs text-rose-500'
+    'text-xs font-semibold uppercase tracking-[0.16em] text-text-muted'
+  const errorClass = 'mt-1 text-xs text-danger'
 
   return (
     <Modal
@@ -296,7 +292,6 @@ const JobPostFormModal = ({
       overlayClassName="bg-black/40 dark:bg-black/70"
     >
       <div className="flex h-full flex-col overflow-hidden bg-white lg:flex-row dark:bg-slate-950">
-        {/* Sidebar — step guide */}
         <aside className="hidden w-full max-w-[320px] flex-col border-b border-slate-200/60 bg-gradient-to-b from-white via-[#f6f8fb] to-[#edf1fb] px-8 py-10 text-slate-900 lg:flex lg:border-b-0 lg:border-r dark:border-slate-700 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900 dark:text-slate-50">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-500 dark:text-slate-400">
@@ -353,7 +348,6 @@ const JobPostFormModal = ({
           onSubmit={handleSubmit}
           className="flex flex-1 flex-col bg-white dark:bg-slate-950"
         >
-          {/* Header */}
           <header className="border-b border-slate-200 px-5 py-5 sm:px-8 sm:py-6 dark:border-slate-800">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
@@ -370,7 +364,8 @@ const JobPostFormModal = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-400 transition hover:border-slate-400 hover:text-slate-700 dark:border-slate-700 dark:text-slate-500 dark:hover:border-slate-500 dark:hover:text-slate-100"
+                disabled={isSubmitting}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-400 transition hover:border-slate-400 hover:text-slate-700 disabled:opacity-50 dark:border-slate-700 dark:text-slate-500 dark:hover:border-slate-500 dark:hover:text-slate-100"
                 aria-label="Close job form"
               >
                 <svg
@@ -387,7 +382,6 @@ const JobPostFormModal = ({
             </div>
           </header>
 
-          {/* Body */}
           <div className="flex-1 overflow-y-auto px-5 py-6 sm:px-8 sm:py-8">
             {activeStepIndex === 0 ? (
               <div className="space-y-5">
@@ -399,7 +393,7 @@ const JobPostFormModal = ({
                       value={values.title}
                       onChange={(e) => setField('title', e.target.value)}
                       className={inputClass}
-                      maxLength={120}
+                      maxLength={200}
                       placeholder="Brand Communication Manager"
                     />
                     {errors.title ? <p className={errorClass}>{errors.title}</p> : null}
@@ -411,7 +405,7 @@ const JobPostFormModal = ({
                       value={values.department}
                       onChange={(e) => setField('department', e.target.value)}
                       className={inputClass}
-                      maxLength={60}
+                      maxLength={100}
                       placeholder="Brand Solutions"
                     />
                     {errors.department ? (
@@ -443,7 +437,7 @@ const JobPostFormModal = ({
                       value={values.city}
                       onChange={(e) => setField('city', e.target.value)}
                       className={inputClass}
-                      maxLength={80}
+                      maxLength={100}
                       placeholder={
                         values.workMode === 'remote'
                           ? 'Anywhere'
@@ -488,26 +482,38 @@ const JobPostFormModal = ({
                     <p className={errorClass}>{errors.aboutCompany}</p>
                   ) : null}
                 </div>
-                <div className="space-y-1.5">
-                  <label className={labelClass}>What You’ll Do — intro *</label>
-                  <textarea
-                    value={values.whatYoullDoIntro}
-                    onChange={(e) => setField('whatYoullDoIntro', e.target.value)}
-                    rows={3}
-                    className={textareaClass}
-                    placeholder="One or two lines setting up the day-to-day."
-                  />
-                  {errors.whatYoullDoIntro ? (
-                    <p className={errorClass}>{errors.whatYoullDoIntro}</p>
-                  ) : null}
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className={labelClass}>What You’ll Do — subtitle</label>
+                    <input
+                      type="text"
+                      value={values.whatYoullDoSubtitle}
+                      onChange={(e) =>
+                        setField('whatYoullDoSubtitle', e.target.value)
+                      }
+                      className={inputClass}
+                      placeholder="e.g. Client & Team Coordination"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className={labelClass}>What You’ll Do — intro</label>
+                    <input
+                      type="text"
+                      value={values.whatYoullDoIntro}
+                      onChange={(e) => setField('whatYoullDoIntro', e.target.value)}
+                      className={inputClass}
+                      placeholder="One line setting up the day-to-day."
+                    />
+                  </div>
                 </div>
                 <ListEditor
-                  label="What You’ll Do — items"
+                  label={`What You’ll Do — items (max ${MAX_LIST_ITEMS})`}
                   items={values.whatYoullDoItems}
                   onChange={(i, v) => updateListItem('whatYoullDoItems', i, v)}
                   onAdd={() => addListItem('whatYoullDoItems')}
                   onRemove={(i) => removeListItem('whatYoullDoItems', i)}
-                  placeholder="e.g. Client & Team Coordination"
+                  addDisabled={values.whatYoullDoItems.length >= MAX_LIST_ITEMS}
+                  placeholder="e.g. Content Strategy & Calendar Planning"
                   error={errors.whatYoullDoItemsGroup}
                 />
               </div>
@@ -516,22 +522,24 @@ const JobPostFormModal = ({
             {activeStepIndex === 2 ? (
               <div className="space-y-8">
                 <ListEditor
-                  label="What You Bring"
+                  label={`What You Bring * (max ${MAX_LIST_ITEMS})`}
                   items={values.whatYouBring}
                   onChange={(i, v) => updateListItem('whatYouBring', i, v)}
                   onAdd={() => addListItem('whatYouBring')}
                   onRemove={(i) => removeListItem('whatYouBring', i)}
+                  addDisabled={values.whatYouBring.length >= MAX_LIST_ITEMS}
                   placeholder="e.g. 2+ years in brand communication"
                   error={errors.whatYouBringGroup}
                 />
                 <ListEditor
-                  label="Why Join?"
-                  items={values.whyJoin}
-                  onChange={(i, v) => updateListItem('whyJoin', i, v)}
-                  onAdd={() => addListItem('whyJoin')}
-                  onRemove={(i) => removeListItem('whyJoin', i)}
+                  label={`Why 7D Design? * (max ${MAX_LIST_ITEMS})`}
+                  items={values.why7d}
+                  onChange={(i, v) => updateListItem('why7d', i, v)}
+                  onAdd={() => addListItem('why7d')}
+                  onRemove={(i) => removeListItem('why7d', i)}
+                  addDisabled={values.why7d.length >= MAX_LIST_ITEMS}
                   placeholder="e.g. Work on bold brands and high-impact campaigns"
-                  error={errors.whyJoinGroup}
+                  error={errors.why7dGroup}
                 />
               </div>
             ) : null}
@@ -539,63 +547,33 @@ const JobPostFormModal = ({
             {activeStepIndex === 3 ? (
               <div className="space-y-6">
                 <div className="space-y-1.5">
-                  <label className={labelClass}>CTA heading *</label>
-                  <input
-                    type="text"
-                    value={values.ctaHeading}
-                    onChange={(e) => setField('ctaHeading', e.target.value)}
-                    className={inputClass}
-                    maxLength={120}
-                    placeholder="Ready to join the chaos?"
+                  <label className={labelClass}>Ready to join — description *</label>
+                  <textarea
+                    value={values.readyToJoinDescription}
+                    onChange={(e) =>
+                      setField('readyToJoinDescription', e.target.value)
+                    }
+                    rows={3}
+                    className={textareaClass}
+                    placeholder="Apply now. Let’s build brands that everyone talks about."
                   />
-                  {errors.ctaHeading ? (
-                    <p className={errorClass}>{errors.ctaHeading}</p>
+                  {errors.readyToJoinDescription ? (
+                    <p className={errorClass}>{errors.readyToJoinDescription}</p>
                   ) : null}
                 </div>
                 <div className="space-y-1.5">
-                  <label className={labelClass}>CTA subtext</label>
-                  <input
-                    type="text"
-                    value={values.ctaSubtext}
-                    onChange={(e) => setField('ctaSubtext', e.target.value)}
+                  <label className={labelClass}>Status</label>
+                  <select
+                    value={values.status}
+                    onChange={(e) => setField('status', e.target.value as JobStatus)}
                     className={inputClass}
-                    maxLength={200}
-                    placeholder="Apply now. Let’s build brands that everyone talks about."
-                  />
-                </div>
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="space-y-1.5">
-                    <label className={labelClass}>Posted</label>
-                    <input
-                      type="date"
-                      value={values.postedAt}
-                      onChange={(e) => setField('postedAt', e.target.value)}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className={labelClass}>Deadline</label>
-                    <input
-                      type="date"
-                      value={values.deadlineAt}
-                      onChange={(e) => setField('deadlineAt', e.target.value)}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className={labelClass}>Status</label>
-                    <select
-                      value={values.status}
-                      onChange={(e) => setField('status', e.target.value as JobStatus)}
-                      className={inputClass}
-                    >
-                      {JOB_STATUSES.map((s) => (
-                        <option key={s.value} value={s.value}>
-                          {s.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  >
+                    {JOB_STATUSES.map((s) => (
+                      <option key={s.value} value={s.value}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             ) : null}
@@ -607,7 +585,6 @@ const JobPostFormModal = ({
             ) : null}
           </div>
 
-          {/* Footer */}
           <footer className="border-t border-slate-200 px-5 py-4 sm:px-8 sm:py-5 dark:border-slate-800">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
@@ -615,7 +592,8 @@ const JobPostFormModal = ({
                   <button
                     type="button"
                     onClick={handleBack}
-                    className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-slate-400 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:text-slate-100"
+                    disabled={isSubmitting}
+                    className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-slate-400 hover:text-slate-900 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:text-slate-100"
                   >
                     Back
                   </button>
@@ -625,7 +603,8 @@ const JobPostFormModal = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-500 transition hover:border-slate-400 hover:text-slate-900 dark:border-slate-700 dark:text-slate-400 dark:hover:border-slate-500 dark:hover:text-slate-100"
+                  disabled={isSubmitting}
+                  className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-500 transition hover:border-slate-400 hover:text-slate-900 disabled:opacity-50 dark:border-slate-700 dark:text-slate-400 dark:hover:border-slate-500 dark:hover:text-slate-100"
                 >
                   Cancel
                 </button>
@@ -639,9 +618,16 @@ const JobPostFormModal = ({
                 ) : (
                   <button
                     type="submit"
-                    className="inline-flex items-center justify-center rounded-xl bg-[#111322] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_18px_32px_-20px_rgba(15,17,33,0.45)] transition hover:bg-[#0c0e1b]"
+                    disabled={isSubmitting}
+                    className="inline-flex items-center justify-center rounded-xl bg-[#111322] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_18px_32px_-20px_rgba(15,17,33,0.45)] transition hover:bg-[#0c0e1b] disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {mode === 'create' ? 'Create post' : 'Save changes'}
+                    {isSubmitting
+                      ? mode === 'create'
+                        ? 'Creating…'
+                        : 'Saving…'
+                      : mode === 'create'
+                        ? 'Create post'
+                        : 'Save changes'}
                   </button>
                 )}
               </div>
@@ -659,6 +645,7 @@ type ListEditorProps = {
   onChange: (index: number, value: string) => void
   onAdd: () => void
   onRemove: (index: number) => void
+  addDisabled?: boolean
   placeholder?: string
   error?: string
 }
@@ -669,6 +656,7 @@ const ListEditor = ({
   onChange,
   onAdd,
   onRemove,
+  addDisabled,
   placeholder,
   error,
 }: ListEditorProps) => (
@@ -680,7 +668,8 @@ const ListEditor = ({
       <button
         type="button"
         onClick={onAdd}
-        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-[11px] font-semibold text-slate-600 hover:border-[#4f54e0] hover:text-[#4f54e0] dark:border-slate-700 dark:text-slate-300"
+        disabled={addDisabled}
+        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-[11px] font-semibold text-slate-600 hover:border-[#4f54e0] hover:text-[#4f54e0] disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:text-slate-300"
       >
         + Add item
       </button>
@@ -716,9 +705,7 @@ const ListEditor = ({
         </div>
       ))}
     </div>
-    {error ? (
-      <p className="text-xs text-rose-500">{error}</p>
-    ) : null}
+    {error ? <p className="text-xs text-rose-500">{error}</p> : null}
   </div>
 )
 

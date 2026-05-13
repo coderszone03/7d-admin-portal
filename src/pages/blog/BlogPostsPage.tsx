@@ -36,6 +36,9 @@ const BlogPostsPage = () => {
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
+  const [popularFilter, setPopularFilter] = useState<'all' | 'popular'>('all')
+  const [togglingPopularId, setTogglingPopularId] = useState<string | null>(null)
+
   const [searchInput, setSearchInput] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
 
@@ -147,9 +150,20 @@ const BlogPostsPage = () => {
     }
   }, [page, pageSize, selectedCategoryId, searchTerm])
 
+  const visiblePosts = useMemo(
+    () =>
+      popularFilter === 'popular'
+        ? posts.filter((p) => p.isPopular)
+        : posts.filter((p) => !p.isPopular),
+    [posts, popularFilter],
+  )
+
   const activePost = useMemo(
-    () => posts.find((post) => post.id === activePostId) ?? posts[0] ?? null,
-    [activePostId, posts],
+    () =>
+      visiblePosts.find((post) => post.id === activePostId) ??
+      visiblePosts[0] ??
+      null,
+    [activePostId, visiblePosts],
   )
 
   const handleOpenCreate = () => {
@@ -190,6 +204,33 @@ const BlogPostsPage = () => {
       setPage(1)
     }
     await loadPosts()
+  }
+
+  const handleTogglePopular = async (post: BlogPost) => {
+    const next = !post.isPopular
+    // Optimistic update so the pill flips immediately.
+    setPosts((prev) =>
+      prev.map((p) => (p.id === post.id ? { ...p, isPopular: next } : p)),
+    )
+    setTogglingPopularId(post.id)
+    setError(null)
+    setStatusMessage(null)
+    try {
+      await updateBlogPost(post.id, { ...post, isPopular: next })
+      setStatusMessage(
+        next
+          ? `Marked "${post.title}" as popular.`
+          : `Removed "${post.title}" from popular.`,
+      )
+    } catch (err) {
+      // Roll back on failure.
+      setPosts((prev) =>
+        prev.map((p) => (p.id === post.id ? { ...p, isPopular: post.isPopular } : p)),
+      )
+      setError(extractApiError(err, 'Could not update popular status. Please try again.'))
+    } finally {
+      setTogglingPopularId(null)
+    }
   }
 
   const handleRequestDelete = (post: BlogPost) => {
@@ -366,6 +407,48 @@ const BlogPostsPage = () => {
             ) : null}
           </div>
 
+          {/* Popular filter toggle */}
+          <div
+            role="tablist"
+            aria-label="Filter posts"
+            className="inline-flex items-center gap-1 rounded-2xl border border-border/60 bg-surface p-1"
+          >
+            <button
+              role="tab"
+              type="button"
+              aria-selected={popularFilter === 'all'}
+              onClick={() => setPopularFilter('all')}
+              className={`inline-flex h-8 items-center gap-1.5 rounded-xl px-3 text-[11px] font-semibold transition ${
+                popularFilter === 'all'
+                  ? 'bg-accent text-white shadow-[0_8px_18px_-12px_rgba(99,102,241,0.7)]'
+                  : 'text-text-muted hover:text-text-secondary'
+              }`}
+            >
+              Standard
+            </button>
+            <button
+              role="tab"
+              type="button"
+              aria-selected={popularFilter === 'popular'}
+              onClick={() => setPopularFilter('popular')}
+              className={`inline-flex h-8 items-center gap-1.5 rounded-xl px-3 text-[11px] font-semibold transition ${
+                popularFilter === 'popular'
+                  ? 'bg-accent text-white shadow-[0_8px_18px_-12px_rgba(99,102,241,0.7)]'
+                  : 'text-text-muted hover:text-text-secondary'
+              }`}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="h-3 w-3"
+              >
+                <path d="M12 2l2.4 6.6H21l-5.3 3.85L17.8 19 12 15.1 6.2 19l2.1-6.55L3 8.6h6.6z" />
+              </svg>
+              Popular
+            </button>
+          </div>
+
           {/* Category chips + total count */}
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-3">
@@ -429,7 +512,7 @@ const BlogPostsPage = () => {
                 </li>
               ))}
             </ul>
-          ) : posts.length === 0 ? (
+          ) : visiblePosts.length === 0 ? (
             <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border/60 bg-surface px-4 py-10 text-center">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-muted text-text-muted">
                 <svg
@@ -445,17 +528,21 @@ const BlogPostsPage = () => {
               </div>
               <div className="space-y-1">
                 <p className="text-sm font-medium text-text-secondary">
-                  {searchTerm || selectedCategoryId !== 'all'
-                    ? 'No posts match these filters'
-                    : 'No posts yet'}
+                  {popularFilter === 'popular'
+                    ? 'No popular posts yet'
+                    : searchTerm || selectedCategoryId !== 'all'
+                      ? 'No posts match these filters'
+                      : 'No standard posts yet'}
                 </p>
                 <p className="text-xs text-text-muted">
-                  {searchTerm || selectedCategoryId !== 'all'
-                    ? 'Try a different search or category.'
-                    : 'Create your first case-study style post.'}
+                  {popularFilter === 'popular'
+                    ? 'Mark a post as popular from its menu to feature it here.'
+                    : searchTerm || selectedCategoryId !== 'all'
+                      ? 'Try a different search or category.'
+                      : 'Create a post or check the Popular tab.'}
                 </p>
               </div>
-              {!searchTerm && selectedCategoryId === 'all' ? (
+              {popularFilter !== 'popular' && !searchTerm && selectedCategoryId === 'all' ? (
                 <button
                   type="button"
                   onClick={handleOpenCreate}
@@ -467,7 +554,7 @@ const BlogPostsPage = () => {
             </div>
           ) : (
             <ul className="space-y-2">
-              {posts.map((post) => {
+              {visiblePosts.map((post) => {
                 const isActive = activePost?.id === post.id
                 return (
                   <li
@@ -508,6 +595,22 @@ const BlogPostsPage = () => {
                         <p className="min-w-0 flex-1 truncate text-sm font-medium text-text-secondary">
                           {post.title}
                         </p>
+                        {post.isPopular ? (
+                          <span
+                            aria-label="Popular post"
+                            className="shrink-0 inline-flex items-center gap-0.5 rounded-full bg-accent/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-accent"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 24 24"
+                              fill="currentColor"
+                              className="h-2.5 w-2.5"
+                            >
+                              <path d="M12 2l2.4 6.6H21l-5.3 3.85L17.8 19 12 15.1 6.2 19l2.1-6.55L3 8.6h6.6z" />
+                            </svg>
+                            Popular
+                          </span>
+                        ) : null}
                         <span
                           className={[
                             'shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em]',
@@ -585,6 +688,33 @@ const BlogPostsPage = () => {
                               />
                             </svg>
                             Edit
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            disabled={togglingPopularId === post.id}
+                            onClick={() => {
+                              setOpenMenuId(null)
+                              handleTogglePopular(post)
+                            }}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-text-secondary transition hover:bg-surface-muted/60 hover:text-accent disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 24 24"
+                              fill={post.isPopular ? 'currentColor' : 'none'}
+                              stroke="currentColor"
+                              strokeWidth={1.5}
+                              strokeLinejoin="round"
+                              className="h-3.5 w-3.5"
+                            >
+                              <path d="M12 2l2.4 6.6H21l-5.3 3.85L17.8 19 12 15.1 6.2 19l2.1-6.55L3 8.6h6.6z" />
+                            </svg>
+                            {togglingPopularId === post.id
+                              ? 'Updating…'
+                              : post.isPopular
+                                ? 'Unmark popular'
+                                : 'Mark as popular'}
                           </button>
                           <button
                             type="button"
