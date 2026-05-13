@@ -912,7 +912,7 @@ const ProjectFormModal = ({
           </div>
         </aside>
 
-        <form onSubmit={handleSubmit} className="flex flex-1 flex-col bg-white dark:bg-slate-950">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col bg-white dark:bg-slate-950">
           <header className="border-b border-slate-200 px-5 py-5 sm:px-8 sm:py-6 dark:border-slate-800">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-center gap-3">

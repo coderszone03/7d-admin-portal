@@ -5,7 +5,6 @@ import OverviewPage from '../pages/OverviewPage'
 import ClientsPage from '../pages/ClientsPage'
 import AboutPage from '../pages/AboutPage'
 import PortfolioProjectsPage from '../pages/portfolio/PortfolioProjectsPage'
-import PortfolioFeaturesPage from '../pages/portfolio/PortfolioFeaturesPage'
 import ServicesPage from '../pages/ServicesPage'
 import BlogCategoriesPage from '../pages/blog/BlogCategoriesPage'
 import BlogPostsPage from '../pages/blog/BlogPostsPage'
@@ -24,7 +23,7 @@ const AppRoutes = () => {
         <Route path="clients" element={<ClientsPage />} />
         <Route path="about" element={<AboutPage />} />
         <Route path="portfolio/projects" element={<PortfolioProjectsPage />} />
-        <Route path="portfolio/features" element={<PortfolioFeaturesPage />} />
+        <Route path="portfolio" element={<Navigate to="/portfolio/projects" replace />} />
         <Route path="services" element={<ServicesPage />} />
         <Route path="blog/categories" element={<BlogCategoriesPage />} />
         <Route path="blog/posts" element={<BlogPostsPage />} />

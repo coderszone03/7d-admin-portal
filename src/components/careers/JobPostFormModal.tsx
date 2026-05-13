@@ -346,7 +346,7 @@ const JobPostFormModal = ({
 
         <form
           onSubmit={handleSubmit}
-          className="flex flex-1 flex-col bg-white dark:bg-slate-950"
+          className="flex min-h-0 flex-1 flex-col bg-white dark:bg-slate-950"
         >
           <header className="border-b border-slate-200 px-5 py-5 sm:px-8 sm:py-6 dark:border-slate-800">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -382,7 +382,7 @@ const JobPostFormModal = ({
             </div>
           </header>
 
-          <div className="flex-1 overflow-y-auto px-5 py-6 sm:px-8 sm:py-8">
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 sm:px-8 sm:py-8">
             {activeStepIndex === 0 ? (
               <div className="space-y-5">
                 <div className="grid gap-4 md:grid-cols-2">

@@ -91,14 +91,7 @@ const navigation: NavigationItem[] = [
   { label: 'Dashboard', to: '/', icon: <DashboardIcon /> },
   { label: 'Clients', to: '/clients', icon: <UsersIcon /> },
   { label: 'About Us', to: '/about', icon: <InfoIcon /> },
-  {
-    label: 'Portfolio',
-    icon: <FolderIcon />,
-    children: [
-      { label: 'Projects', to: '/portfolio/projects' },
-      { label: 'Features', to: '/portfolio/features' },
-    ],
-  },
+  { label: 'Portfolio', to: '/portfolio/projects', icon: <FolderIcon /> },
   { label: 'Services', to: '/services', icon: <BriefcaseIcon /> },
   {
     label: 'Blog',

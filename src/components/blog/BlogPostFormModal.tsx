@@ -503,7 +503,7 @@ const BlogPostFormModal = ({
 
         <form
           onSubmit={handleSubmit}
-          className="flex h-full flex-1 flex-col overflow-hidden bg-surface/90 text-slate-900 dark:bg-slate-950 dark:text-slate-50"
+          className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface/90 text-slate-900 dark:bg-slate-950 dark:text-slate-50"
         >
           <header className="flex items-center justify-between gap-3 border-b border-slate-200 bg-surface px-5 py-4 sm:px-8 dark:border-slate-800 dark:bg-slate-950/80">
             <div>
@@ -523,7 +523,7 @@ const BlogPostFormModal = ({
             </button>
           </header>
 
-          <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-8 sm:py-6">
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-8 sm:py-6">
             {activeStepIndex === 0 ? (
               <div className="space-y-5">
                 <div className="grid gap-4 md:grid-cols-2">
