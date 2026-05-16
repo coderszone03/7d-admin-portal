@@ -7,11 +7,14 @@ import MockupUploadsStep from './steps/step4'
 import TestimonialFooterStep from './steps/step5'
 import PreviewStep from './steps/step6'
 import {
+  IMAGE_SPECS,
   MAX_KEYWORDS,
   MAX_MEDIA_ASSET_SIZE,
   MAX_THUMBNAIL_SIZE,
   MEDIA_UPLOAD_MIME_TYPES,
   PROJECT_KEYWORD_OPTIONS,
+  validateImageDimensions,
+  validatePreviewDimensions,
   type Project,
   type ProjectDetailsFormValues,
   type ProjectDetailsStepPayload,
@@ -354,18 +357,49 @@ const ProjectFormModal = ({
     }))
   }
 
-  const handleLandscapeMockupChange = (preview: string | null) => {
-    setValues((prev) => ({
-      ...prev,
-      landscapeMockupPreview: preview,
-    }))
+  const handleLandscapeMockupChange = async (file: File | null, preview: string | null) => {
+    if (!file) {
+      setValues((prev) => ({ ...prev, landscapeMockupPreview: preview }))
+      setErrors((prev) => ({ ...prev, landscapeMockup: undefined }))
+      return
+    }
+    const dimensionCheck = await validateImageDimensions(file, IMAGE_SPECS.landscapeMockup)
+    if (!dimensionCheck.ok) {
+      setErrors((prev) => ({ ...prev, landscapeMockup: dimensionCheck.error }))
+      return
+    }
+    setValues((prev) => ({ ...prev, landscapeMockupPreview: preview }))
+    setErrors((prev) => ({ ...prev, landscapeMockup: undefined }))
   }
 
-  const handleWebsiteMockupChange = (preview: string | null) => {
-    setValues((prev) => ({
-      ...prev,
-      websiteMockupPreview: preview,
-    }))
+  const handleWebsiteMockupChange = async (file: File | null, preview: string | null) => {
+    if (!file) {
+      setValues((prev) => ({ ...prev, websiteMockupPreview: preview }))
+      setErrors((prev) => ({ ...prev, websiteMockup: undefined }))
+      return
+    }
+    const dimensionCheck = await validateImageDimensions(file, IMAGE_SPECS.websiteMockup)
+    if (!dimensionCheck.ok) {
+      setErrors((prev) => ({ ...prev, websiteMockup: dimensionCheck.error }))
+      return
+    }
+    setValues((prev) => ({ ...prev, websiteMockupPreview: preview }))
+    setErrors((prev) => ({ ...prev, websiteMockup: undefined }))
+  }
+
+  const handleFooterMockupChange = async (file: File | null, preview: string | null) => {
+    if (!file) {
+      setValues((prev) => ({ ...prev, footerMockupPreview: preview }))
+      setErrors((prev) => ({ ...prev, footerMockup: undefined }))
+      return
+    }
+    const dimensionCheck = await validateImageDimensions(file, IMAGE_SPECS.footerMockup)
+    if (!dimensionCheck.ok) {
+      setErrors((prev) => ({ ...prev, footerMockup: dimensionCheck.error }))
+      return
+    }
+    setValues((prev) => ({ ...prev, footerMockupPreview: preview }))
+    setErrors((prev) => ({ ...prev, footerMockup: undefined }))
   }
 
   const handleWebsiteVisibilityToggle = () => {
@@ -404,6 +438,16 @@ const ProjectFormModal = ({
       setErrors((prev) => ({
         ...prev,
         thumbnail: 'Thumbnail must be 2MB or smaller.',
+      }))
+      fileInputResetToken.current += 1
+      return
+    }
+
+    const dimensionCheck = await validateImageDimensions(file, IMAGE_SPECS.thumbnail)
+    if (!dimensionCheck.ok) {
+      setErrors((prev) => ({
+        ...prev,
+        thumbnail: dimensionCheck.error,
       }))
       fileInputResetToken.current += 1
       return
@@ -491,6 +535,16 @@ const ProjectFormModal = ({
       setErrors((prev) => ({
         ...prev,
         [field]: `${getMediaFieldLabel(field)} must be 2MB or smaller.`,
+      }))
+      bumpMediaInputResetToken(field)
+      return
+    }
+
+    const dimensionCheck = await validateImageDimensions(file, IMAGE_SPECS[field])
+    if (!dimensionCheck.ok) {
+      setErrors((prev) => ({
+        ...prev,
+        [field]: dimensionCheck.error,
       }))
       bumpMediaInputResetToken(field)
       return
@@ -686,6 +740,25 @@ const ProjectFormModal = ({
     [values.keywords.length],
   )
 
+  // Re-validates already-loaded previews (data URLs or remote URLs) before advancing
+  // a step or submitting. This catches off-spec images that were loaded in edit mode
+  // (which bypasses the file change handlers).
+  const validatePreviews = async (
+    pairs: Array<{ key: FieldErrorKey; preview: string | null; spec: typeof IMAGE_SPECS[keyof typeof IMAGE_SPECS] }>,
+  ): Promise<Partial<Record<FieldErrorKey, string>>> => {
+    const result: Partial<Record<FieldErrorKey, string>> = {}
+    await Promise.all(
+      pairs.map(async ({ key, preview, spec }) => {
+        if (!preview) return
+        const check = await validatePreviewDimensions(preview, spec)
+        if (!check.ok) {
+          result[key] = check.error
+        }
+      }),
+    )
+    return result
+  }
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
@@ -698,16 +771,20 @@ const ProjectFormModal = ({
     // Step 1 – basic details
     if (activeStepIndex === 0) {
       const detailsErrors = validateDetailsStep()
+      const dimErrors = await validatePreviews([
+        { key: 'thumbnail', preview: values.thumbnailPreview, spec: IMAGE_SPECS.thumbnail },
+      ])
+      const merged = { ...detailsErrors, ...dimErrors }
 
       if (
-        detailsErrors.title ||
-        detailsErrors.year ||
-        detailsErrors.category ||
-        detailsErrors.shortDescription ||
-        detailsErrors.thumbnail ||
-        detailsErrors.keywords
+        merged.title ||
+        merged.year ||
+        merged.category ||
+        merged.shortDescription ||
+        merged.thumbnail ||
+        merged.keywords
       ) {
-        setErrors(detailsErrors)
+        setErrors(merged)
         return
       }
 
@@ -737,16 +814,22 @@ const ProjectFormModal = ({
     // Step 3 – branding media
     if (activeStepIndex === 2) {
       const mediaErrors = validateMediaStep()
+      const dimErrors = await validatePreviews([
+        { key: 'clientMockup', preview: values.clientMockupPreview, spec: IMAGE_SPECS.clientMockup },
+        { key: 'brandingMockup', preview: values.brandingMockupPreview, spec: IMAGE_SPECS.brandingMockup },
+        { key: 'brandingMockupSecondary', preview: values.brandingMockupSecondaryPreview, spec: IMAGE_SPECS.brandingMockupSecondary },
+      ])
+      const merged = { ...mediaErrors, ...dimErrors }
 
       if (
-        mediaErrors.clientMockup ||
-        mediaErrors.brandingMockup ||
-        mediaErrors.brandingMockupSecondary ||
-        mediaErrors.badgeName ||
-        mediaErrors.brandTitle ||
-        mediaErrors.brandDescription
+        merged.clientMockup ||
+        merged.brandingMockup ||
+        merged.brandingMockupSecondary ||
+        merged.badgeName ||
+        merged.brandTitle ||
+        merged.brandDescription
       ) {
-        setErrors(mediaErrors)
+        setErrors(merged)
         return
       }
 
@@ -758,15 +841,20 @@ const ProjectFormModal = ({
     // Step 4 – mockup uploads
     if (activeStepIndex === 3) {
       const mockupErrors = validateMockupsStep()
+      const dimErrors = await validatePreviews([
+        { key: 'landscapeMockup', preview: values.landscapeMockupPreview, spec: IMAGE_SPECS.landscapeMockup },
+        { key: 'websiteMockup', preview: values.websiteMockupPreview, spec: IMAGE_SPECS.websiteMockup },
+      ])
+      const merged = { ...mockupErrors, ...dimErrors }
 
       if (
-        mockupErrors.landscapeMockup ||
-        mockupErrors.websiteMockup ||
-        mockupErrors.websiteUrl ||
-        mockupErrors.websiteTitle ||
-        mockupErrors.websiteDescription
+        merged.landscapeMockup ||
+        merged.websiteMockup ||
+        merged.websiteUrl ||
+        merged.websiteTitle ||
+        merged.websiteDescription
       ) {
-        setErrors(mockupErrors)
+        setErrors(merged)
         return
       }
 
@@ -778,14 +866,18 @@ const ProjectFormModal = ({
     // Step 5 – testimonials & footer
     if (activeStepIndex === 4) {
       const testimonialErrors = validateTestimonialStep()
+      const dimErrors = await validatePreviews([
+        { key: 'footerMockup', preview: values.footerMockupPreview, spec: IMAGE_SPECS.footerMockup },
+      ])
+      const merged = { ...testimonialErrors, ...dimErrors }
 
       if (
-        testimonialErrors.testimonialFeedback ||
-        testimonialErrors.testimonialClientName ||
-        testimonialErrors.testimonialDesignation ||
-        testimonialErrors.footerMockup
+        merged.testimonialFeedback ||
+        merged.testimonialClientName ||
+        merged.testimonialDesignation ||
+        merged.footerMockup
       ) {
-        setErrors(testimonialErrors)
+        setErrors(merged)
         return
       }
 
@@ -795,17 +887,31 @@ const ProjectFormModal = ({
     }
 
     // Step 6 – submit: re-validate everything to guard against back-navigation edits.
+    const dimErrors = await validatePreviews([
+      { key: 'thumbnail', preview: values.thumbnailPreview, spec: IMAGE_SPECS.thumbnail },
+      { key: 'clientMockup', preview: values.clientMockupPreview, spec: IMAGE_SPECS.clientMockup },
+      { key: 'brandingMockup', preview: values.brandingMockupPreview, spec: IMAGE_SPECS.brandingMockup },
+      { key: 'brandingMockupSecondary', preview: values.brandingMockupSecondaryPreview, spec: IMAGE_SPECS.brandingMockupSecondary },
+      { key: 'landscapeMockup', preview: values.landscapeMockupPreview, spec: IMAGE_SPECS.landscapeMockup },
+      { key: 'websiteMockup', preview: values.websiteMockupPreview, spec: IMAGE_SPECS.websiteMockup },
+      { key: 'footerMockup', preview: values.footerMockupPreview, spec: IMAGE_SPECS.footerMockup },
+    ])
     const allErrors: Partial<Record<FieldErrorKey, string>> = {
       ...validateDetailsStep(),
       ...validateOverviewStep(),
       ...validateMediaStep(),
       ...validateMockupsStep(),
       ...validateTestimonialStep(),
+      ...dimErrors,
     }
 
     if (Object.values(allErrors).some(Boolean)) {
       setErrors(allErrors)
-      setFormError('Some required fields are missing. Please go back and fix them.')
+      setFormError(
+        dimErrors && Object.keys(dimErrors).length > 0
+          ? 'One or more images do not meet the required dimensions. Please go back and re-upload.'
+          : 'Some required fields are missing. Please go back and fix them.',
+      )
       return
     }
 
@@ -1013,9 +1119,8 @@ const ProjectFormModal = ({
               <TestimonialFooterStep
                 values={values}
                 onFieldChange={handleFieldChange}
-                onFooterMockupChange={(preview) =>
-                  setValues((prev) => ({ ...prev, footerMockupPreview: preview }))
-                }
+                onFooterMockupChange={handleFooterMockupChange}
+                errors={{ footerMockup: errors.footerMockup }}
               />
             ) : null}
 

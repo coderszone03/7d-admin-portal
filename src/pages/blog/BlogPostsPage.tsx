@@ -26,9 +26,10 @@ const BlogPostsPage = () => {
   const [categories, setCategories] = useState<BlogCategory[]>([])
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all')
   const [page, setPage] = useState(1)
-  const [pageSize] = useState(6)
+  const [pageSize] = useState(10)
   const [totalCount, setTotalCount] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
 
@@ -52,6 +53,7 @@ const BlogPostsPage = () => {
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const listScrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!openMenuId) return
@@ -97,13 +99,14 @@ const BlogPostsPage = () => {
     setError(null)
     try {
       const { items, total } = await fetchBlogPosts({
-        page,
+        page: 1,
         pageSize,
         categoryId: selectedCategoryId === 'all' ? null : selectedCategoryId,
         search: searchTerm || undefined,
       })
       setPosts(items)
       setTotalCount(total)
+      setPage(1)
       setActivePostId((previous) => {
         if (previous && items.some((item) => item.id === previous)) {
           return previous
@@ -119,8 +122,10 @@ const BlogPostsPage = () => {
 
   useEffect(() => {
     let isMounted = true
+    const isFirstPage = page === 1
+    if (isFirstPage) setIsLoading(true)
+    else setIsLoadingMore(true)
     ;(async () => {
-      setIsLoading(true)
       setError(null)
       try {
         const { items, total } = await fetchBlogPosts({
@@ -130,19 +135,22 @@ const BlogPostsPage = () => {
           search: searchTerm || undefined,
         })
         if (!isMounted) return
-        setPosts(items)
+        setPosts((prev) => (isFirstPage ? items : [...prev, ...items]))
         setTotalCount(total)
         setActivePostId((previous) => {
           if (previous && items.some((item) => item.id === previous)) {
             return previous
           }
-          return items[0]?.id ?? null
+          return isFirstPage ? items[0]?.id ?? null : previous
         })
       } catch (loadError) {
         if (!isMounted) return
         setError(loadError instanceof Error ? loadError.message : 'Unable to load blog posts.')
       } finally {
-        if (isMounted) setIsLoading(false)
+        if (isMounted) {
+          setIsLoading(false)
+          setIsLoadingMore(false)
+        }
       }
     })()
     return () => {
@@ -264,43 +272,26 @@ const BlogPostsPage = () => {
     (block) => block.type === 'heading' && block.heading && block.heading.trim(),
   )
 
-  const totalPages = useMemo(
-    () => Math.max(1, Math.ceil((totalCount || posts.length || 1) / pageSize)),
-    [pageSize, posts.length, totalCount],
-  )
-
   const handleSelectCategory = (categoryId: string) => {
     setSelectedCategoryId(categoryId)
     setPage(1)
   }
 
-  const handlePageChange = (direction: -1 | 1) => {
-    setPage((current) => {
-      const next = current + direction
-      if (next < 1) return 1
-      if (next > totalPages) return totalPages
-      return next
-    })
+  const hasMore = posts.length < totalCount
+
+  const handleLoadMore = () => {
+    if (isLoadingMore || isLoading || !hasMore) return
+    setPage((curr) => curr + 1)
   }
 
-  const goToPage = (targetPage: number) => {
-    if (targetPage < 1 || targetPage > totalPages) return
-    setPage(targetPage)
-  }
-
-  const pageNumbers = useMemo<Array<number | 'ellipsis'>>(() => {
-    if (totalPages <= 7) {
-      return Array.from({ length: totalPages }, (_, i) => i + 1)
+  const handleListScroll = () => {
+    const el = listScrollRef.current
+    if (!el || isLoadingMore || isLoading || !hasMore) return
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+    if (distanceFromBottom < 80) {
+      handleLoadMore()
     }
-    const result: Array<number | 'ellipsis'> = [1]
-    if (page > 3) result.push('ellipsis')
-    const start = Math.max(2, page - 1)
-    const end = Math.min(totalPages - 1, page + 1)
-    for (let i = start; i <= end; i += 1) result.push(i)
-    if (page < totalPages - 2) result.push('ellipsis')
-    result.push(totalPages)
-    return result
-  }, [page, totalPages])
+  }
 
   const formatShortDate = (iso: string) => {
     try {
@@ -364,8 +355,8 @@ const BlogPostsPage = () => {
         </div>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,2.2fr)]">
-        <div className="space-y-4 rounded-3xl border border-border/60 bg-surface/80 p-5">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,2.2fr)] lg:items-stretch">
+        <div className="flex max-h-[840px] flex-col gap-4 rounded-3xl border border-border/60 bg-surface/80 p-5">
           {/* Search */}
           <div className="relative">
             <svg
@@ -496,6 +487,12 @@ const BlogPostsPage = () => {
             </p>
           ) : null}
 
+          {/* Scrollable list region */}
+          <div
+            ref={listScrollRef}
+            onScroll={handleListScroll}
+            className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
           {/* List / loading / empty */}
           {isLoading ? (
             <ul className="space-y-2">
@@ -750,74 +747,37 @@ const BlogPostsPage = () => {
             </ul>
           )}
 
-          {/* Pagination */}
-          {posts.length > 0 && totalPages > 1 ? (
-            <div className="flex items-center justify-between border-t border-border/40 pt-3">
-              <button
-                type="button"
-                onClick={() => handlePageChange(-1)}
-                disabled={page <= 1}
-                aria-label="Previous page"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/60 text-text-secondary disabled:cursor-not-allowed disabled:opacity-40 hover:border-accent/60 hover:text-accent"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={1.8}
-                  className="h-3.5 w-3.5"
+          {/* Load-more sentinel inside scroll region */}
+          {hasMore ? (
+            <div className="flex items-center justify-center py-3 text-[11px] text-text-muted">
+              {isLoadingMore ? 'Loading more…' : (
+                <button
+                  type="button"
+                  onClick={handleLoadMore}
+                  className="rounded-full border border-border/60 px-3 py-1 text-[11px] font-medium text-text-secondary transition hover:border-accent/60 hover:text-accent"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m15 18-6-6 6-6" />
-                </svg>
-              </button>
-              <div className="flex items-center gap-1">
-                {pageNumbers.map((n, i) =>
-                  n === 'ellipsis' ? (
-                    <span key={`e-${i}`} className="px-1 text-xs text-text-muted">
-                      …
-                    </span>
-                  ) : (
-                    <button
-                      key={n}
-                      type="button"
-                      onClick={() => goToPage(n)}
-                      className={[
-                        'inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition',
-                        n === page
-                          ? 'bg-accent text-white shadow-[0_8px_18px_-12px_rgba(99,102,241,0.7)]'
-                          : 'border border-border/60 text-text-secondary hover:border-accent/60 hover:text-accent',
-                      ].join(' ')}
-                    >
-                      {n}
-                    </button>
-                  ),
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => handlePageChange(1)}
-                disabled={page >= totalPages}
-                aria-label="Next page"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/60 text-text-secondary disabled:cursor-not-allowed disabled:opacity-40 hover:border-accent/60 hover:text-accent"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={1.8}
-                  className="h-3.5 w-3.5"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m9 18 6-6-6-6" />
-                </svg>
-              </button>
+                  Load more
+                </button>
+              )}
+            </div>
+          ) : null}
+          </div>
+
+          {/* Footer count — pinned below scroll region */}
+          {posts.length > 0 ? (
+            <div className="flex items-center justify-between border-t border-border/40 pt-3 text-[11px] text-text-muted">
+              <span>
+                Showing{' '}
+                <span className="font-semibold text-text-secondary">{visiblePosts.length}</span> of{' '}
+                <span className="font-semibold text-text-secondary">{totalCount}</span>
+              </span>
+              {isLoadingMore ? <span>Loading…</span> : null}
             </div>
           ) : null}
         </div>
 
-        <div className="space-y-5 ">
-          <div className="rounded-3xl border border-border/60 bg-surface p-6 text-text-secondary">
+        <div className="flex max-h-[840px] min-h-0 flex-col lg:h-full">
+          <div className="flex flex-1 min-h-0 flex-col rounded-3xl border border-border/60 bg-surface p-6 text-text-secondary">
             {/* Compact horizontal meta strip — always shown above the article */}
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <div className="inline-flex items-center gap-2 rounded-full bg-surface-muted/60 px-3 py-1.5">
@@ -859,7 +819,7 @@ const BlogPostsPage = () => {
               ) : null}
             </div>
 
-            <div className="flex h-[75vh] flex-col overflow-hidden">
+            <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
               <article
                 className="flex-1 space-y-4 overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               >

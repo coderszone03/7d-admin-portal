@@ -5,8 +5,8 @@ const MEDIA_ACCEPT = MEDIA_UPLOAD_MIME_TYPES.join(',')
 
 type MockupUploadsStepProps = {
   values: ProjectDetailsFormValues
-  onLandscapeMockupChange: (preview: string | null) => void
-  onWebsiteMockupChange: (preview: string | null) => void
+  onLandscapeMockupChange: (file: File | null, preview: string | null) => void
+  onWebsiteMockupChange: (file: File | null, preview: string | null) => void
   onWebsiteFieldChange: (
     field: 'websiteUrl' | 'websiteTitle' | 'websiteDescription',
     value: string,
@@ -37,15 +37,18 @@ const Step4 = ({
   const isWebsiteEnabled = values.isWebsiteEnabled
 
   const handleLocalMockupChange = useCallback(
-    (event: ChangeEvent<HTMLInputElement>, setPreview: (value: string | null) => void) => {
+    (
+      event: ChangeEvent<HTMLInputElement>,
+      onChange: (file: File | null, preview: string | null) => void,
+    ) => {
       const file = event.target.files?.[0]
       if (!file) {
-        setPreview(null)
+        onChange(null, null)
         return
       }
       const reader = new FileReader()
       reader.onload = () => {
-        setPreview(typeof reader.result === 'string' ? reader.result : null)
+        onChange(file, typeof reader.result === 'string' ? reader.result : null)
       }
       reader.readAsDataURL(file)
     },
@@ -82,7 +85,7 @@ const Step4 = ({
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => onLandscapeMockupChange(null)}
+                  onClick={() => onLandscapeMockupChange(null, null)}
                   className="inline-flex items-center rounded-xl border border-border/60 px-3 py-1.5 text-xs font-semibold text-text-secondary transition hover:border-error/70 hover:text-error"
                 >
                   Remove
@@ -105,7 +108,9 @@ const Step4 = ({
                   </svg>
                 </span>
                 <p className="text-sm font-medium text-text-secondary">Drag & drop or click to upload</p>
-                <p className="text-xs text-text-muted">Ideal for wide hero or presentation frames.</p>
+                <p className="text-xs text-text-muted">
+                  Ideal for wide hero or presentation frames. Required: 817×502px (≈1.63:1).
+                </p>
               </div>
               <label
                 htmlFor="landscape-mockup-upload"
@@ -121,7 +126,9 @@ const Step4 = ({
             accept={MEDIA_ACCEPT}
             className="hidden"
             onChange={(event) =>
-              handleLocalMockupChange(event, (preview) => onLandscapeMockupChange(preview))
+              handleLocalMockupChange(event, (file, preview) =>
+                onLandscapeMockupChange(file, preview),
+              )
             }
           />
         </div>
@@ -151,7 +158,7 @@ const Step4 = ({
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => onWebsiteMockupChange(null)}
+                  onClick={() => onWebsiteMockupChange(null, null)}
                   className="inline-flex items-center rounded-xl border border-border/60 px-3 py-1.5 text-xs font-semibold text-text-secondary transition hover:border-error/70 hover:text-error"
                 >
                   Remove
@@ -174,7 +181,9 @@ const Step4 = ({
                   </svg>
                 </span>
                 <p className="text-sm font-medium text-text-secondary">Upload a website frame</p>
-                <p className="text-xs text-text-muted">Show the live experience or key page layout.</p>
+                <p className="text-xs text-text-muted">
+                  Show the live experience or key page layout. Required: 817×502px (≈1.63:1).
+                </p>
               </div>
               <label
                 htmlFor="website-mockup-upload"
@@ -190,7 +199,9 @@ const Step4 = ({
             accept={MEDIA_ACCEPT}
             className="hidden"
             onChange={(event) =>
-              handleLocalMockupChange(event, (preview) => onWebsiteMockupChange(preview))
+              handleLocalMockupChange(event, (file, preview) =>
+                onWebsiteMockupChange(file, preview),
+              )
             }
           />
         </div>

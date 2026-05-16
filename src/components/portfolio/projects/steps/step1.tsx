@@ -336,7 +336,7 @@ const Step1 = ({
               Thumbnail image <span className="text-danger">*</span>
             </p>
             <p className="text-xs text-text-muted">
-              Upload a 2MB JPG or PNG. This preview appears in the portfolio grid.
+              Upload a 2MB JPG or PNG at 757×464px (≈1.63:1). This preview appears in the portfolio grid.
             </p>
           </div>
           <div
@@ -403,7 +403,7 @@ const Step1 = ({
                   <p className="text-sm font-medium text-text-secondary">
                     Drag & drop or click to upload
                   </p>
-                  <p className="text-xs text-text-muted">PNG or JPG up to 2MB</p>
+                  <p className="text-xs text-text-muted">PNG or JPG up to 2MB · 757×464px (≈1.63:1)</p>
                 </div>
                 <label
                   htmlFor="project-thumbnail"

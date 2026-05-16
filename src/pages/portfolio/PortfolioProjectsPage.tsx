@@ -14,7 +14,7 @@ import {
 } from '../../lib/api/portfolio'
 import Modal from '../../components/common/Modal'
 
-const ITEMS_PER_PAGE = 6
+const ITEMS_PER_PAGE = 10
 
 const secondaryButtonClasses =
   'inline-flex h-11 items-center justify-center rounded-lg border border-border/60 px-4 text-sm font-semibold text-text-secondary transition hover:border-[#6366f1] hover:text-[#6366f1] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#6366f1]/40 disabled:cursor-not-allowed disabled:opacity-60'
@@ -24,7 +24,7 @@ const dangerButtonClasses =
 
 const PortfolioProjectsPage = () => {
   const [projects, setProjects] = useState<Project[]>([])
-  const [currentPage, setCurrentPage] = useState(1)
+  const [loadedCount, setLoadedCount] = useState(ITEMS_PER_PAGE)
   const [isFormOpen, setFormOpen] = useState(false)
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
   const [projectBeingEdited, setProjectBeingEdited] = useState<Project | null>(null)
@@ -71,22 +71,16 @@ const PortfolioProjectsPage = () => {
     }
   }, [])
 
-  const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(projects.length / ITEMS_PER_PAGE)),
-    [projects.length],
+  const visibleProjects = useMemo(
+    () => projects.slice(0, loadedCount),
+    [projects, loadedCount],
   )
 
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages)
-    }
-  }, [currentPage, totalPages])
+  const hasMore = loadedCount < projects.length
 
-  const paginatedProjects = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE
-    const end = start + ITEMS_PER_PAGE
-    return projects.slice(start, end)
-  }, [currentPage, projects])
+  const handleLoadMore = () => {
+    setLoadedCount((curr) => Math.min(curr + ITEMS_PER_PAGE, projects.length))
+  }
 
   const handleOpenCreate = () => {
     setFormMode('create')
@@ -102,10 +96,6 @@ const PortfolioProjectsPage = () => {
 
   const handleCloseForm = () => {
     setFormOpen(false)
-  }
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page)
   }
 
   const extractApiError = (err: unknown, fallback: string) => {
@@ -126,7 +116,7 @@ const PortfolioProjectsPage = () => {
     } else {
       await createPortfolio(payload)
       setStatusMessage(`Added "${payload.title}" successfully.`)
-      setCurrentPage(1)
+      setLoadedCount(ITEMS_PER_PAGE)
     }
     await loadProjects()
   }
@@ -220,12 +210,11 @@ const PortfolioProjectsPage = () => {
         </div>
       ) : (
         <ProjectList
-          projects={paginatedProjects}
+          projects={visibleProjects}
           totalCount={projects.length}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          itemsPerPage={ITEMS_PER_PAGE}
-          onPageChange={handlePageChange}
+          hasMore={hasMore}
+          isLoadingMore={false}
+          onLoadMore={handleLoadMore}
           onEditProject={handleOpenEdit}
           onDeleteProject={handleRequestDelete}
         />

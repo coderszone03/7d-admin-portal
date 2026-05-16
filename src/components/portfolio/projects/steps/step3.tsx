@@ -67,7 +67,7 @@ const Step3 = ({
           <p className="text-sm text-text-muted">
             Upload the primary client-facing frame for this project. GIF uploads are supported.
           </p>
-          <p className="text-xs text-text-muted">PNG, JPG, or GIF up to 2MB.</p>
+          <p className="text-xs text-text-muted">PNG, JPG, or GIF up to 2MB · 817×400px (≈2.04:1).</p>
         </div>
 
         {(() => {
@@ -117,7 +117,7 @@ const Step3 = ({
                       </svg>
                     </span>
                     <p className="text-sm font-medium text-text-secondary">Drag & drop or click to upload</p>
-                    <p className="text-xs text-text-muted">PNG, JPG, or GIF up to 2MB</p>
+                    <p className="text-xs text-text-muted">PNG, JPG, or GIF up to 2MB · 817×400px (≈2.04:1)</p>
                   </div>
                   <label
                     htmlFor={inputId}
@@ -164,7 +164,7 @@ const Step3 = ({
               <div key={field} className="space-y-3">
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-text-secondary">{title}</p>
-                  <p className="text-xs text-text-muted">PNG, JPG, or GIF up to 2MB.</p>
+                  <p className="text-xs text-text-muted">PNG, JPG, or GIF up to 2MB · 770×770px (1:1 square).</p>
                 </div>
 
                 <div
@@ -206,7 +206,7 @@ const Step3 = ({
                           </svg>
                         </span>
                         <p className="text-sm font-medium text-text-secondary">Drag & drop or click to upload</p>
-                        <p className="text-xs text-text-muted">PNG, JPG, or GIF up to 2MB</p>
+                        <p className="text-xs text-text-muted">PNG, JPG, or GIF up to 2MB · 770×770px (1:1)</p>
                       </div>
                       <label
                         htmlFor={inputId}

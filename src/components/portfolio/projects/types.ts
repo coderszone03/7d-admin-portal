@@ -150,3 +150,100 @@ export const getCategoryLabel = (value: ProjectCategoryValue) => {
   const match = PROJECT_CATEGORY_OPTIONS.find((option) => option.value === value)
   return match ? match.label : value
 }
+
+export type ProjectImageSlot =
+  | 'thumbnail'
+  | 'clientMockup'
+  | 'brandingMockup'
+  | 'brandingMockupSecondary'
+  | 'landscapeMockup'
+  | 'websiteMockup'
+  | 'footerMockup'
+
+export type ImageSpec = {
+  label: string
+  width: number
+  height: number
+}
+
+// Reference dimensions taken from the public site case-study layout.
+// Validation accepts files at or above these dimensions whose aspect ratio matches within ±3%.
+export const IMAGE_SPECS: Record<ProjectImageSlot, ImageSpec> = {
+  thumbnail: { label: 'Thumbnail', width: 757, height: 464 },
+  clientMockup: { label: 'Client mockup', width: 817, height: 400 },
+  brandingMockup: { label: 'Branding mockup', width: 770, height: 770 },
+  brandingMockupSecondary: { label: 'Secondary branding mockup', width: 770, height: 770 },
+  landscapeMockup: { label: 'Landscape mockup', width: 817, height: 502 },
+  websiteMockup: { label: 'Website mockup', width: 817, height: 502 },
+  footerMockup: { label: 'Footer brand strip', width: 408, height: 280 },
+}
+
+const ASPECT_RATIO_TOLERANCE = 0.03
+
+export type ImageValidationResult =
+  | { ok: true; width: number; height: number }
+  | { ok: false; error: string }
+
+const checkDimensions = (width: number, height: number, spec: ImageSpec): ImageValidationResult => {
+  if (width < spec.width || height < spec.height) {
+    return {
+      ok: false,
+      error: `${spec.label} must be at least ${spec.width}×${spec.height}px (uploaded ${width}×${height}px).`,
+    }
+  }
+
+  const expectedRatio = spec.width / spec.height
+  const actualRatio = width / height
+  const ratioDelta = Math.abs(actualRatio / expectedRatio - 1)
+  if (ratioDelta > ASPECT_RATIO_TOLERANCE) {
+    return {
+      ok: false,
+      error: `${spec.label} must use a ${spec.width}:${spec.height} aspect ratio (uploaded ${width}×${height}px).`,
+    }
+  }
+
+  return { ok: true, width, height }
+}
+
+export const validateImageDimensions = (
+  file: File,
+  spec: ImageSpec,
+): Promise<ImageValidationResult> =>
+  new Promise((resolve) => {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      const result = checkDimensions(img.naturalWidth, img.naturalHeight, spec)
+      URL.revokeObjectURL(url)
+      resolve(result)
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      resolve({ ok: false, error: `${spec.label} could not be read. Please try a different image.` })
+    }
+    img.src = url
+  })
+
+// Validates an in-memory preview (data URL or http URL) against a spec.
+// Used to re-check existing images at submit time, since edit-mode pre-loads
+// previews directly without going through the file change handler.
+export const validatePreviewDimensions = (
+  preview: string,
+  spec: ImageSpec,
+): Promise<ImageValidationResult> =>
+  new Promise((resolve) => {
+    if (!preview) {
+      resolve({ ok: false, error: `${spec.label} is required.` })
+      return
+    }
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      resolve(checkDimensions(img.naturalWidth, img.naturalHeight, spec))
+    }
+    img.onerror = () => {
+      // If the image can't even load, surface a clear error (e.g. CORS or 404).
+      resolve({ ok: false, error: `${spec.label} could not be read. Please re-upload the image.` })
+    }
+    img.src = preview
+  })

@@ -10,10 +10,9 @@ import { getCategoryLabel, PROJECT_CATEGORY_OPTIONS, type Project } from './type
 type ProjectListProps = {
   projects: Project[]
   totalCount: number
-  currentPage: number
-  totalPages: number
-  itemsPerPage: number
-  onPageChange: (page: number) => void
+  hasMore: boolean
+  isLoadingMore?: boolean
+  onLoadMore: () => void
   onEditProject: (project: Project) => void
   onDeleteProject: (project: Project) => void
 }
@@ -43,10 +42,9 @@ const formatDate = (iso: string) => {
 const ProjectList = ({
   projects,
   totalCount,
-  currentPage,
-  totalPages,
-  itemsPerPage,
-  onPageChange,
+  hasMore,
+  isLoadingMore,
+  onLoadMore,
   onEditProject,
   onDeleteProject,
 }: ProjectListProps) => {
@@ -104,27 +102,22 @@ const ProjectList = ({
     [filtered, activeProjectId],
   )
 
-  const startItem = (currentPage - 1) * itemsPerPage + 1
-  const endItem = Math.min(startItem + itemsPerPage - 1, totalCount)
+  const listScrollRef = useRef<HTMLDivElement>(null)
 
-  const pageNumbers = useMemo<Array<number | 'ellipsis'>>(() => {
-    if (totalPages <= 7) {
-      return Array.from({ length: totalPages }, (_, i) => i + 1)
+  // Auto-load next batch when the user scrolls near the bottom of the list panel.
+  const handleListScroll = () => {
+    const el = listScrollRef.current
+    if (!el || !hasMore || isLoadingMore) return
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+    if (distanceFromBottom < 80) {
+      onLoadMore()
     }
-    const result: Array<number | 'ellipsis'> = [1]
-    if (currentPage > 3) result.push('ellipsis')
-    const start = Math.max(2, currentPage - 1)
-    const end = Math.min(totalPages - 1, currentPage + 1)
-    for (let i = start; i <= end; i += 1) result.push(i)
-    if (currentPage < totalPages - 2) result.push('ellipsis')
-    result.push(totalPages)
-    return result
-  }, [currentPage, totalPages])
+  }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)]">
-      {/* LEFT — list */}
-      <div className="space-y-4 rounded-3xl border border-border/60 bg-surface/80 p-5">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)] lg:items-stretch">
+      {/* LEFT — list (grows with data, capped at ~10 items, scrolls beyond) */}
+      <div className="flex max-h-[840px] flex-col gap-4 rounded-3xl border border-border/60 bg-surface/80 p-5">
         {/* Search */}
         <div className="relative">
           <svg
@@ -209,7 +202,12 @@ const ProjectList = ({
           </div>
         </div>
 
-        {/* List */}
+        {/* List (scroll region) */}
+        <div
+          ref={listScrollRef}
+          onScroll={handleListScroll}
+          className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border/60 bg-surface px-4 py-10 text-center">
             <p className="text-sm font-medium text-text-secondary">
@@ -368,81 +366,36 @@ const ProjectList = ({
           </ul>
         )}
 
-        {/* Pagination */}
-        {totalPages > 1 ? (
-          <div className="flex items-center justify-between border-t border-border/40 pt-3">
-            <p className="text-[11px] text-text-muted">
-              Showing{' '}
-              <span className="font-semibold text-text-secondary">{startItem}</span>–
-              <span className="font-semibold text-text-secondary">{endItem}</span> of{' '}
-              <span className="font-semibold text-text-secondary">{totalCount}</span>
-            </p>
-            <div className="flex items-center gap-1">
+        {/* Load-more sentinel / loading row */}
+        {hasMore ? (
+          <div className="flex items-center justify-center py-3 text-[11px] text-text-muted">
+            {isLoadingMore ? 'Loading more…' : (
               <button
                 type="button"
-                onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-                disabled={currentPage <= 1}
-                aria-label="Previous page"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/60 text-text-secondary disabled:cursor-not-allowed disabled:opacity-40 hover:border-accent/60 hover:text-accent"
+                onClick={onLoadMore}
+                className="rounded-full border border-border/60 px-3 py-1 text-[11px] font-medium text-text-secondary transition hover:border-accent/60 hover:text-accent"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={1.8}
-                  className="h-3.5 w-3.5"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m15 18-6-6 6-6" />
-                </svg>
+                Load more
               </button>
-              {pageNumbers.map((n, i) =>
-                n === 'ellipsis' ? (
-                  <span key={`e-${i}`} className="px-1 text-xs text-text-muted">
-                    …
-                  </span>
-                ) : (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => onPageChange(n)}
-                    className={[
-                      'inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition',
-                      n === currentPage
-                        ? 'bg-accent text-white shadow-[0_8px_18px_-12px_rgba(99,102,241,0.7)]'
-                        : 'border border-border/60 text-text-secondary hover:border-accent/60 hover:text-accent',
-                    ].join(' ')}
-                  >
-                    {n}
-                  </button>
-                ),
-              )}
-              <button
-                type="button"
-                onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
-                disabled={currentPage >= totalPages}
-                aria-label="Next page"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/60 text-text-secondary disabled:cursor-not-allowed disabled:opacity-40 hover:border-accent/60 hover:text-accent"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={1.8}
-                  className="h-3.5 w-3.5"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m9 18 6-6-6-6" />
-                </svg>
-              </button>
-            </div>
+            )}
           </div>
         ) : null}
+        </div>
+
+        {/* Footer count — pinned below scroll region */}
+        <div className="flex items-center justify-between border-t border-border/40 pt-3 text-[11px] text-text-muted">
+          <span>
+            Showing{' '}
+            <span className="font-semibold text-text-secondary">{filtered.length}</span> of{' '}
+            <span className="font-semibold text-text-secondary">{totalCount}</span>
+          </span>
+          {isLoadingMore ? <span>Loading…</span> : null}
+        </div>
       </div>
 
-      {/* RIGHT — detail/preview pane (independently scrollable) */}
-      <div className="space-y-5">
-        <div className="h-[75vh] overflow-y-auto rounded-3xl border border-border/60 bg-surface p-6 text-text-secondary [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {/* RIGHT — detail/preview pane (matches list height, scrolls when content overflows) */}
+      <div className="flex max-h-[840px] min-h-0 flex-col lg:h-full">
+        <div className="flex-1 min-h-0 overflow-y-auto rounded-3xl border border-border/60 bg-surface p-6 text-text-secondary [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {activeProject ? (
             <div className="space-y-5">
               {/* Meta strip — horizontal row on top */}

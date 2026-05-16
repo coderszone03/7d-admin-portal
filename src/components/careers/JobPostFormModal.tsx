@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import Modal from '../common/Modal'
 import type {
   EmploymentType,
@@ -205,6 +205,33 @@ const JobPostFormModal = ({
       [field]:
         prev[field].length > 1 ? prev[field].filter((_, i) => i !== index) : prev[field],
     }))
+  }
+
+  const insertListItemAfter = (field: ListField, index: number) => {
+    setValues((prev) => {
+      if (prev[field].length >= MAX_LIST_ITEMS) return prev
+      const next = [...prev[field]]
+      next.splice(index + 1, 0, '')
+      return { ...prev, [field]: next }
+    })
+  }
+
+  const reorderListItem = (field: ListField, fromIndex: number, toIndex: number) => {
+    setValues((prev) => {
+      if (fromIndex === toIndex) return prev
+      const list = prev[field]
+      if (
+        fromIndex < 0 ||
+        fromIndex >= list.length ||
+        toIndex < 0 ||
+        toIndex >= list.length
+      )
+        return prev
+      const next = [...list]
+      const [moved] = next.splice(fromIndex, 1)
+      next.splice(toIndex, 0, moved)
+      return { ...prev, [field]: next }
+    })
   }
 
   const validateStep = (index: number): Partial<Record<FieldErrorKey, string>> => {
@@ -471,10 +498,10 @@ const JobPostFormModal = ({
               <div className="space-y-6">
                 <div className="space-y-1.5">
                   <label className={labelClass}>About the company *</label>
-                  <textarea
+                  <AutoGrowTextarea
                     value={values.aboutCompany}
-                    onChange={(e) => setField('aboutCompany', e.target.value)}
-                    rows={5}
+                    onChange={(v) => setField('aboutCompany', v)}
+                    minRows={5}
                     className={textareaClass}
                     placeholder="Who you are, what you do, and the vibe of the place."
                   />
@@ -507,11 +534,15 @@ const JobPostFormModal = ({
                   </div>
                 </div>
                 <ListEditor
-                  label={`What You’ll Do — items (max ${MAX_LIST_ITEMS})`}
+                  key={`whatYoullDoItems-${initialPost?.id ?? 'new'}`}
+                  label="What You’ll Do — items"
+                  maxItems={MAX_LIST_ITEMS}
                   items={values.whatYoullDoItems}
                   onChange={(i, v) => updateListItem('whatYoullDoItems', i, v)}
                   onAdd={() => addListItem('whatYoullDoItems')}
+                  onInsertAfter={(i) => insertListItemAfter('whatYoullDoItems', i)}
                   onRemove={(i) => removeListItem('whatYoullDoItems', i)}
+                  onReorder={(from, to) => reorderListItem('whatYoullDoItems', from, to)}
                   addDisabled={values.whatYoullDoItems.length >= MAX_LIST_ITEMS}
                   placeholder="e.g. Content Strategy & Calendar Planning"
                   error={errors.whatYoullDoItemsGroup}
@@ -522,21 +553,29 @@ const JobPostFormModal = ({
             {activeStepIndex === 2 ? (
               <div className="space-y-8">
                 <ListEditor
-                  label={`What You Bring * (max ${MAX_LIST_ITEMS})`}
+                  key={`whatYouBring-${initialPost?.id ?? 'new'}`}
+                  label="What You Bring *"
+                  maxItems={MAX_LIST_ITEMS}
                   items={values.whatYouBring}
                   onChange={(i, v) => updateListItem('whatYouBring', i, v)}
                   onAdd={() => addListItem('whatYouBring')}
+                  onInsertAfter={(i) => insertListItemAfter('whatYouBring', i)}
                   onRemove={(i) => removeListItem('whatYouBring', i)}
+                  onReorder={(from, to) => reorderListItem('whatYouBring', from, to)}
                   addDisabled={values.whatYouBring.length >= MAX_LIST_ITEMS}
                   placeholder="e.g. 2+ years in brand communication"
                   error={errors.whatYouBringGroup}
                 />
                 <ListEditor
-                  label={`Why 7D Design? * (max ${MAX_LIST_ITEMS})`}
+                  key={`why7d-${initialPost?.id ?? 'new'}`}
+                  label="Why 7D Design? *"
+                  maxItems={MAX_LIST_ITEMS}
                   items={values.why7d}
                   onChange={(i, v) => updateListItem('why7d', i, v)}
                   onAdd={() => addListItem('why7d')}
+                  onInsertAfter={(i) => insertListItemAfter('why7d', i)}
                   onRemove={(i) => removeListItem('why7d', i)}
+                  onReorder={(from, to) => reorderListItem('why7d', from, to)}
                   addDisabled={values.why7d.length >= MAX_LIST_ITEMS}
                   placeholder="e.g. Work on bold brands and high-impact campaigns"
                   error={errors.why7dGroup}
@@ -548,12 +587,10 @@ const JobPostFormModal = ({
               <div className="space-y-6">
                 <div className="space-y-1.5">
                   <label className={labelClass}>Ready to join — description *</label>
-                  <textarea
+                  <AutoGrowTextarea
                     value={values.readyToJoinDescription}
-                    onChange={(e) =>
-                      setField('readyToJoinDescription', e.target.value)
-                    }
-                    rows={3}
+                    onChange={(v) => setField('readyToJoinDescription', v)}
+                    minRows={3}
                     className={textareaClass}
                     placeholder="Apply now. Let’s build brands that everyone talks about."
                   />
@@ -639,12 +676,219 @@ const JobPostFormModal = ({
   )
 }
 
+type AutoGrowTextareaProps = {
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+  minRows?: number
+  maxRows?: number
+  className?: string
+}
+
+// Textarea that grows with its content up to `maxRows`, then allows scrolling
+// — the scrollbar only appears while the user is hovering the field and content overflows.
+const AutoGrowTextarea = ({
+  value,
+  onChange,
+  placeholder,
+  minRows = 3,
+  maxRows = 5,
+  className = '',
+}: AutoGrowTextareaProps) => {
+  const ref = useRef<HTMLTextAreaElement>(null)
+  const [isHovered, setIsHovered] = useState(false)
+  const [hasOverflow, setHasOverflow] = useState(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    // Measure one line height from the live element so the cap matches the actual font.
+    const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 24
+    const paddingY =
+      parseFloat(getComputedStyle(el).paddingTop) +
+      parseFloat(getComputedStyle(el).paddingBottom)
+    const maxHeight = lineHeight * maxRows + paddingY
+
+    el.style.height = 'auto'
+    const target = Math.min(el.scrollHeight, maxHeight)
+    el.style.height = `${target}px`
+    setHasOverflow(el.scrollHeight > maxHeight)
+  }, [value, maxRows])
+
+  const overflowClass = isHovered && hasOverflow ? 'overflow-y-auto' : 'overflow-hidden'
+
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      placeholder={placeholder}
+      rows={minRows}
+      className={`resize-none ${overflowClass} ${className}`}
+    />
+  )
+}
+
+type ListEditorRowProps = {
+  index: number
+  total: number
+  value: string
+  placeholder?: string
+  isDragOver: boolean
+  isDragging: boolean
+  // Imperative focus signal: any non-zero value that changes triggers a focus.
+  focusNonce: number
+  onChange: (value: string) => void
+  onEnter: () => void
+  onBackspaceEmpty: () => void
+  onRemove: () => void
+  onDragStart: () => void
+  onDragOver: () => void
+  onDragLeave: () => void
+  onDragEnd: () => void
+  onDrop: () => void
+}
+
+const ListEditorRow = ({
+  index,
+  total,
+  value,
+  placeholder,
+  isDragOver,
+  isDragging,
+  focusNonce,
+  onChange,
+  onEnter,
+  onBackspaceEmpty,
+  onRemove,
+  onDragStart,
+  onDragOver,
+  onDragLeave,
+  onDragEnd,
+  onDrop,
+}: ListEditorRowProps) => {
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // Auto-grow textarea: collapse to 1 line by default, expand as content grows, cap at ~8 lines.
+  useEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(Math.max(el.scrollHeight, 24), 192)}px`
+  }, [value])
+
+  useEffect(() => {
+    if (focusNonce > 0) {
+      const el = textareaRef.current
+      if (!el) return
+      el.focus()
+      // Place caret at end so Enter-add-below feels natural.
+      const len = el.value.length
+      el.setSelectionRange(len, len)
+    }
+  }, [focusNonce])
+
+  return (
+    <div
+      onDragOver={(e) => {
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'move'
+        onDragOver()
+      }}
+      onDragLeave={onDragLeave}
+      onDrop={(e) => {
+        e.preventDefault()
+        onDrop()
+      }}
+      className={[
+        'group relative flex items-start gap-1.5 rounded-lg px-1.5 py-1 transition-colors',
+        isDragging ? 'opacity-40' : '',
+        isDragOver ? 'bg-[#4f54e0]/10 ring-1 ring-[#4f54e0]/40 dark:bg-[#4f54e0]/15' : 'hover:bg-slate-50/70 dark:hover:bg-slate-800/40',
+      ].join(' ')}
+    >
+      {/* Drag handle (always visible at low opacity, brightens on hover) */}
+      <button
+        type="button"
+        draggable
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+        aria-label="Reorder item"
+        title="Drag to reorder"
+        className="mt-1.5 inline-flex h-5 w-4 shrink-0 cursor-grab items-center justify-center text-slate-400 transition hover:text-slate-700 active:cursor-grabbing dark:text-slate-500 dark:hover:text-slate-200"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3">
+          <circle cx="9" cy="6" r="1.4" />
+          <circle cx="15" cy="6" r="1.4" />
+          <circle cx="9" cy="12" r="1.4" />
+          <circle cx="15" cy="12" r="1.4" />
+          <circle cx="9" cy="18" r="1.4" />
+          <circle cx="15" cy="18" r="1.4" />
+        </svg>
+      </button>
+
+      {/* Number gutter */}
+      <span
+        aria-hidden="true"
+        className="mt-1.5 inline-flex w-6 shrink-0 select-none justify-end pr-0.5 text-xs font-medium tabular-nums text-slate-400 dark:text-slate-500"
+      >
+        {index + 1}.
+      </span>
+
+      {/* Auto-grow textarea (no boxed border — feels like one cohesive list) */}
+      <textarea
+        ref={textareaRef}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+            e.preventDefault()
+            onEnter()
+            return
+          }
+          if (e.key === 'Backspace' && value === '' && total > 1) {
+            e.preventDefault()
+            onBackspaceEmpty()
+          }
+        }}
+        placeholder={placeholder}
+        rows={1}
+        className="flex-1 resize-none border-0 bg-transparent px-1 py-1 text-sm leading-6 text-slate-900 outline-none placeholder:text-slate-400 focus:ring-0 dark:text-slate-50 dark:placeholder:text-slate-500"
+      />
+
+      {/* Remove (visible on hover/focus-within only, never on the last remaining row) */}
+      <button
+        type="button"
+        onClick={onRemove}
+        disabled={total <= 1}
+        aria-label="Remove item"
+        className="mt-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-slate-400 opacity-0 transition group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-rose-50 hover:text-rose-500 disabled:pointer-events-none disabled:opacity-0 dark:hover:bg-rose-900/20"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.8}
+          className="h-3 w-3"
+        >
+          <path strokeLinecap="round" d="M6 6l12 12M18 6 6 18" />
+        </svg>
+      </button>
+    </div>
+  )
+}
+
 type ListEditorProps = {
   label: string
   items: string[]
+  maxItems: number
   onChange: (index: number, value: string) => void
   onAdd: () => void
+  onInsertAfter: (index: number) => void
   onRemove: (index: number) => void
+  onReorder: (fromIndex: number, toIndex: number) => void
   addDisabled?: boolean
   placeholder?: string
   error?: string
@@ -653,60 +897,161 @@ type ListEditorProps = {
 const ListEditor = ({
   label,
   items,
+  maxItems,
   onChange,
   onAdd,
+  onInsertAfter,
   onRemove,
+  onReorder,
   addDisabled,
   placeholder,
   error,
-}: ListEditorProps) => (
-  <div className="space-y-3">
-    <div className="flex items-center justify-between">
-      <label className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
-        {label}
-      </label>
-      <button
-        type="button"
-        onClick={onAdd}
-        disabled={addDisabled}
-        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-[11px] font-semibold text-slate-600 hover:border-[#4f54e0] hover:text-[#4f54e0] disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:text-slate-300"
-      >
-        + Add item
-      </button>
-    </div>
+}: ListEditorProps) => {
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null)
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  // Imperative focus signal that bumps every time the user wants a row focused.
+  // Plain `focusIndex` would not re-fire when the same index needs focus again
+  // (e.g. insert at index 3 twice in a row).
+  const [focusRequest, setFocusRequest] = useState<{ index: number; nonce: number } | null>(null)
+
+  const requestFocus = (index: number) => {
+    setFocusRequest((prev) => ({ index, nonce: (prev?.nonce ?? 0) + 1 }))
+  }
+
+  // Stable per-row keys so React doesn't reuse a textarea DOM node across logical rows
+  // when the user reorders or removes items. We mirror every mutation onto this ref
+  // (insert/remove/reorder) so each logical item keeps the same key for its lifetime.
+  // Length mismatch means our local mirror is out of sync with what the parent seeded
+  // (e.g. switching from create → edit, or hot-reloading) — rebuild fresh.
+  const keyCounterRef = useRef(0)
+  const itemKeysRef = useRef<string[]>([])
+  if (itemKeysRef.current.length !== items.length) {
+    const next: string[] = []
+    for (let i = 0; i < items.length; i += 1) {
+      next.push(`row-${(keyCounterRef.current += 1)}`)
+    }
+    itemKeysRef.current = next
+  }
+
+  const handleEnter = (index: number) => {
+    if (items.length >= maxItems) return
+    // Mirror the insert into the keys ref so the new row keeps a fresh stable key
+    // and existing rows retain theirs.
+    const newKey = `row-${(keyCounterRef.current += 1)}`
+    itemKeysRef.current = [
+      ...itemKeysRef.current.slice(0, index + 1),
+      newKey,
+      ...itemKeysRef.current.slice(index + 1),
+    ]
+    onInsertAfter(index)
+    requestFocus(index + 1)
+  }
+
+  const handleBackspaceEmpty = (index: number) => {
+    if (items.length <= 1) return
+    itemKeysRef.current = itemKeysRef.current.filter((_, i) => i !== index)
+    onRemove(index)
+    requestFocus(Math.max(0, index - 1))
+  }
+
+  const handleRemove = (index: number) => {
+    if (items.length <= 1) return
+    itemKeysRef.current = itemKeysRef.current.filter((_, i) => i !== index)
+    onRemove(index)
+  }
+
+  const handleAdd = () => {
+    if (addDisabled) return
+    const appendIndex = items.length
+    itemKeysRef.current = [
+      ...itemKeysRef.current,
+      `row-${(keyCounterRef.current += 1)}`,
+    ]
+    onAdd()
+    requestFocus(appendIndex)
+  }
+
+  const handleDrop = (toIndex: number) => {
+    if (draggingIndex === null || draggingIndex === toIndex) {
+      setDraggingIndex(null)
+      setDragOverIndex(null)
+      return
+    }
+    // Mirror the move so identity follows the data.
+    const next = [...itemKeysRef.current]
+    const [moved] = next.splice(draggingIndex, 1)
+    next.splice(toIndex, 0, moved)
+    itemKeysRef.current = next
+    onReorder(draggingIndex, toIndex)
+    setDraggingIndex(null)
+    setDragOverIndex(null)
+  }
+
+  return (
     <div className="space-y-2">
-      {items.map((item, index) => (
-        <div key={index} className="flex items-center gap-2">
-          <input
-            type="text"
-            value={item}
-            onChange={(e) => onChange(index, e.target.value)}
-            placeholder={placeholder}
-            className="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[#4f54e0] focus:ring-2 focus:ring-[#4f54e0]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
-          />
-          <button
-            type="button"
-            onClick={() => onRemove(index)}
-            disabled={items.length <= 1}
-            aria-label={`Remove ${label.toLowerCase()} item`}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition hover:bg-rose-50 hover:text-rose-500 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-rose-900/20"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.8}
-              className="h-3.5 w-3.5"
-            >
-              <path strokeLinecap="round" d="M6 6l12 12M18 6 6 18" />
-            </svg>
-          </button>
+      <div className="flex items-baseline justify-between gap-3">
+        <label className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+          {label}
+        </label>
+        <span className="text-[11px] tabular-nums text-slate-400 dark:text-slate-500">
+          {items.length} / {maxItems}
+        </span>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white py-1.5 dark:border-slate-700 dark:bg-slate-900">
+        <div className="divide-y divide-slate-100 dark:divide-slate-800">
+          {items.map((item, index) => {
+            const focusNonce =
+              focusRequest && focusRequest.index === index ? focusRequest.nonce : 0
+            return (
+              <ListEditorRow
+                key={itemKeysRef.current[index]}
+                index={index}
+                total={items.length}
+                value={item}
+                placeholder={placeholder}
+                isDragging={draggingIndex === index}
+                isDragOver={dragOverIndex === index && draggingIndex !== index}
+                focusNonce={focusNonce}
+                onChange={(v) => onChange(index, v)}
+                onEnter={() => handleEnter(index)}
+                onBackspaceEmpty={() => handleBackspaceEmpty(index)}
+                onRemove={() => handleRemove(index)}
+                onDragStart={() => setDraggingIndex(index)}
+                onDragOver={() => setDragOverIndex(index)}
+                onDragLeave={() => {
+                  setDragOverIndex((curr) => (curr === index ? null : curr))
+                }}
+                onDragEnd={() => {
+                  setDraggingIndex(null)
+                  setDragOverIndex(null)
+                }}
+                onDrop={() => handleDrop(index)}
+              />
+            )
+          })}
         </div>
-      ))}
+
+        {/* Inline "Add item" affordance — sits flush at the bottom of the list */}
+        <button
+          type="button"
+          onClick={handleAdd}
+          disabled={addDisabled}
+          className="mt-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-400 transition hover:bg-slate-50 hover:text-[#4f54e0] disabled:cursor-not-allowed disabled:opacity-40 dark:text-slate-500 dark:hover:bg-slate-800/60 dark:hover:text-[#7d82ff]"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-3.5 w-3.5">
+            <path strokeLinecap="round" d="M12 5v14M5 12h14" />
+          </svg>
+          Add item
+          <span className="ml-auto text-[10px] uppercase tracking-[0.18em] text-slate-300 dark:text-slate-600">
+            Enter ↵
+          </span>
+        </button>
+      </div>
+
+      {error ? <p className="text-xs text-rose-500">{error}</p> : null}
     </div>
-    {error ? <p className="text-xs text-rose-500">{error}</p> : null}
-  </div>
-)
+  )
+}
 
 export default JobPostFormModal

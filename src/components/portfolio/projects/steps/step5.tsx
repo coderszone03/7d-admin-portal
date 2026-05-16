@@ -8,10 +8,18 @@ type TestimonialFooterStepProps = {
   onFieldChange: <
     K extends 'testimonialFeedback' | 'testimonialClientName' | 'testimonialDesignation',
   >(field: K, value: ProjectDetailsFormValues[K]) => void
-  onFooterMockupChange: (preview: string | null) => void
+  onFooterMockupChange: (file: File | null, preview: string | null) => void
+  errors?: {
+    footerMockup?: string
+  }
 }
 
-const Step5 = ({ values, onFieldChange, onFooterMockupChange }: TestimonialFooterStepProps) => {
+const Step5 = ({
+  values,
+  onFieldChange,
+  onFooterMockupChange,
+  errors,
+}: TestimonialFooterStepProps) => {
   const { testimonialFeedback, testimonialClientName, testimonialDesignation, footerMockupPreview } =
     values
 
@@ -19,12 +27,15 @@ const Step5 = ({ values, onFieldChange, onFooterMockupChange }: TestimonialFoote
     (event: ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0]
       if (!file) {
-        onFooterMockupChange(null)
+        onFooterMockupChange(null, null)
         return
       }
       const reader = new FileReader()
       reader.onload = () => {
-        onFooterMockupChange(typeof reader.result === 'string' ? reader.result : null)
+        onFooterMockupChange(
+          file,
+          typeof reader.result === 'string' ? reader.result : null,
+        )
       }
       reader.readAsDataURL(file)
     },
@@ -103,8 +114,9 @@ const Step5 = ({ values, onFieldChange, onFooterMockupChange }: TestimonialFoote
 
         <div
           className={[
-            'relative flex flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-border/55 bg-background/30 p-4 text-center transition',
-            footerMockupPreview ? 'border-border/40 bg-background/40' : 'hover:border-accent/50',
+            'relative flex flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed bg-background/30 p-4 text-center transition',
+            footerMockupPreview ? 'border-border/40 bg-background/40' : 'border-border/55 hover:border-accent/50',
+            errors?.footerMockup ? 'border-error/60' : '',
           ].join(' ')}
         >
           {footerMockupPreview ? (
@@ -117,7 +129,7 @@ const Step5 = ({ values, onFieldChange, onFooterMockupChange }: TestimonialFoote
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => onFooterMockupChange(null)}
+                  onClick={() => onFooterMockupChange(null, null)}
                   className="inline-flex items-center rounded-xl border border-border/60 px-3 py-1.5 text-xs font-semibold text-text-secondary transition hover:border-error/70 hover:text-error"
                 >
                   Remove
@@ -139,7 +151,9 @@ const Step5 = ({ values, onFieldChange, onFooterMockupChange }: TestimonialFoote
                   </svg>
                 </span>
                 <p className="text-sm font-medium text-text-secondary">Upload a footer brand strip</p>
-                <p className="text-xs text-text-muted">PNG or JPG up to 2MB, ideally wide and short.</p>
+                <p className="text-xs text-text-muted">
+                  PNG or JPG up to 2MB. Required: 408×280px (≈1.46:1).
+                </p>
               </div>
               <label
                 htmlFor="footer-mockup-upload"
@@ -157,6 +171,9 @@ const Step5 = ({ values, onFieldChange, onFooterMockupChange }: TestimonialFoote
             onChange={handleFooterMockupChange}
           />
         </div>
+        {errors?.footerMockup ? (
+          <p className="text-xs text-error">{errors.footerMockup}</p>
+        ) : null}
       </div>
     </div>
   )
