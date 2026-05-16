@@ -77,6 +77,13 @@ const BadgeIcon = () => (
   </svg>
 )
 
+const QuoteIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className={iconClasses}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 7.5h3v3a3 3 0 0 1-3 3M14.25 7.5h3v3a3 3 0 0 1-3 3" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3 5.25A2.25 2.25 0 0 1 5.25 3h13.5A2.25 2.25 0 0 1 21 5.25v10.5A2.25 2.25 0 0 1 18.75 18H8.25L3 21V5.25Z" />
+  </svg>
+)
+
 const SettingsIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className={iconClasses}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.75h4.5m-4.5 16.5h4.5M4.5 9.75h15m-15 4.5h15" />
@@ -92,6 +99,7 @@ const navigation: NavigationItem[] = [
   { label: 'Clients', to: '/clients', icon: <UsersIcon /> },
   { label: 'About Us', to: '/about', icon: <InfoIcon /> },
   { label: 'Portfolio', to: '/portfolio/projects', icon: <FolderIcon /> },
+  { label: 'Testimonials', to: '/testimonials', icon: <QuoteIcon /> },
   { label: 'Services', to: '/services', icon: <BriefcaseIcon /> },
   {
     label: 'Blog',

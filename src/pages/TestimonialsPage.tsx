@@ -6,20 +6,25 @@ import {
   type ChangeEvent,
 } from 'react'
 import Modal from '../components/common/Modal'
-import ServiceFormModal from '../components/services/ServiceFormModal'
+import TestimonialFormModal from '../components/testimonials/TestimonialFormModal'
 import type {
-  Service,
-  ServiceFormPayload,
-} from '../components/services/types'
+  Testimonial,
+  TestimonialFormPayload,
+} from '../components/testimonials/types'
 import {
-  createService,
-  deleteService,
-  fetchServices,
-  updateService,
-} from '../lib/api/services'
+  PROJECT_CATEGORY_OPTIONS,
+  getCategoryLabel,
+} from '../components/portfolio/projects/types'
+import {
+  createTestimonial,
+  deleteTestimonial,
+  fetchTestimonials,
+  updateTestimonial,
+} from '../lib/api/testimonials'
 
 const PAGE_SIZE = 10
 
+type CategoryFilter = 'all' | Testimonial['category']
 type StatusFilter = 'all' | 0 | 1
 
 const formatShortDate = (iso: string) => {
@@ -44,8 +49,8 @@ const formatDate = (iso: string) => {
   }
 }
 
-const ServicesPage = () => {
-  const [items, setItems] = useState<Service[]>([])
+const TestimonialsPage = () => {
+  const [items, setItems] = useState<Testimonial[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
@@ -55,6 +60,7 @@ const ServicesPage = () => {
 
   const [searchInput, setSearchInput] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
 
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -64,12 +70,13 @@ const ServicesPage = () => {
 
   const [isFormOpen, setFormOpen] = useState(false)
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
-  const [editingItem, setEditingItem] = useState<Service | null>(null)
+  const [editingItem, setEditingItem] = useState<Testimonial | null>(null)
 
-  const [deleteTarget, setDeleteTarget] = useState<Service | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Testimonial | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
+  // Debounce search input → searchTerm.
   useEffect(() => {
     const handle = window.setTimeout(() => {
       setSearchTerm(searchInput.trim())
@@ -78,6 +85,7 @@ const ServicesPage = () => {
     return () => window.clearTimeout(handle)
   }, [searchInput])
 
+  // Close kebab menu on outside click / escape.
   useEffect(() => {
     if (!openMenuId) return
     const handleClickOutside = (event: MouseEvent) => {
@@ -96,6 +104,7 @@ const ServicesPage = () => {
     }
   }, [openMenuId])
 
+  // Fetch on filter / page change. Append on page > 1.
   useEffect(() => {
     let isMounted = true
     const isFirstPage = page === 1
@@ -104,10 +113,11 @@ const ServicesPage = () => {
     ;(async () => {
       setError(null)
       try {
-        const { items: nextItems, total } = await fetchServices({
+        const { items: nextItems, total } = await fetchTestimonials({
           page,
           pageSize: PAGE_SIZE,
           search: searchTerm || undefined,
+          category: categoryFilter,
           status: statusFilter,
         })
         if (!isMounted) return
@@ -119,7 +129,7 @@ const ServicesPage = () => {
         })
       } catch (err) {
         if (!isMounted) return
-        setError(err instanceof Error ? err.message : 'Unable to load services.')
+        setError(err instanceof Error ? err.message : 'Unable to load testimonials.')
       } finally {
         if (isMounted) {
           setIsLoading(false)
@@ -130,7 +140,7 @@ const ServicesPage = () => {
     return () => {
       isMounted = false
     }
-  }, [page, searchTerm, statusFilter])
+  }, [page, searchTerm, categoryFilter, statusFilter])
 
   const hasMore = items.length < totalCount
 
@@ -150,10 +160,11 @@ const ServicesPage = () => {
     setIsLoading(true)
     setError(null)
     try {
-      const { items: nextItems, total } = await fetchServices({
+      const { items: nextItems, total } = await fetchTestimonials({
         page: 1,
         pageSize: PAGE_SIZE,
         search: searchTerm || undefined,
+        category: categoryFilter,
         status: statusFilter,
       })
       setItems(nextItems)
@@ -164,7 +175,7 @@ const ServicesPage = () => {
         return nextItems[0]?.id ?? null
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load services.')
+      setError(err instanceof Error ? err.message : 'Unable to load testimonials.')
     } finally {
       setIsLoading(false)
     }
@@ -176,25 +187,25 @@ const ServicesPage = () => {
     setFormOpen(true)
   }
 
-  const handleOpenEdit = (item: Service) => {
+  const handleOpenEdit = (item: Testimonial) => {
     setFormMode('edit')
     setEditingItem(item)
     setFormOpen(true)
   }
 
-  const handleSubmit = async (payload: ServiceFormPayload) => {
+  const handleSubmit = async (payload: TestimonialFormPayload) => {
     setStatusMessage(null)
     if (formMode === 'edit' && editingItem) {
-      await updateService(editingItem.id, payload)
-      setStatusMessage(`Updated "${payload.title}".`)
+      await updateTestimonial(editingItem.id, payload)
+      setStatusMessage(`Updated "${payload.name}".`)
     } else {
-      await createService(payload)
-      setStatusMessage(`Added "${payload.title}".`)
+      await createTestimonial(payload)
+      setStatusMessage(`Added "${payload.name}".`)
     }
     await refreshFromFirstPage()
   }
 
-  const handleRequestDelete = (item: Service) => {
+  const handleRequestDelete = (item: Testimonial) => {
     setDeleteError(null)
     setDeleteTarget(item)
   }
@@ -210,13 +221,13 @@ const ServicesPage = () => {
     setIsDeleting(true)
     setDeleteError(null)
     try {
-      await deleteService(deleteTarget.id)
-      setStatusMessage(`Removed "${deleteTarget.title}".`)
+      await deleteTestimonial(deleteTarget.id)
+      setStatusMessage(`Removed "${deleteTarget.name}".`)
       setDeleteTarget(null)
       await refreshFromFirstPage()
     } catch (err) {
       setDeleteError(
-        err instanceof Error ? err.message : 'Could not delete the service.',
+        err instanceof Error ? err.message : 'Could not delete the testimonial.',
       )
     } finally {
       setIsDeleting(false)
@@ -228,8 +239,6 @@ const ServicesPage = () => {
     [items, activeId],
   )
 
-  const existingSlugs = useMemo(() => items.map((i) => i.slug), [items])
-
   const statusOptions: Array<{ value: StatusFilter; label: string }> = [
     { value: 'all', label: 'All' },
     { value: 1, label: 'Live' },
@@ -240,11 +249,11 @@ const ServicesPage = () => {
     <section className="space-y-6">
       <header className="flex flex-col gap-4 rounded-3xl border border-border/60 bg-surface p-6 shadow-sm sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-2">
-          <p className="text-xs uppercase tracking-[0.25em] text-text-muted">Services</p>
-          <h1 className="text-2xl font-semibold text-text-primary">What we do</h1>
+          <p className="text-xs uppercase tracking-[0.25em] text-text-muted">Testimonials</p>
+          <h1 className="text-2xl font-semibold text-text-primary">Client voices</h1>
           <p className="max-w-2xl text-sm text-text-muted">
-            Manage the service cards on the public grid and the navbar dropdown.
-            Lower display order shows first.
+            Curate the testimonials that rotate through the homepage deck. Lower display
+            order shows first.
           </p>
         </div>
         <button
@@ -264,7 +273,7 @@ const ServicesPage = () => {
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m7-7H5" />
             </svg>
           </span>
-          Add service
+          Add testimonial
         </button>
       </header>
 
@@ -285,7 +294,9 @@ const ServicesPage = () => {
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,2fr)] lg:items-stretch">
+        {/* LEFT — list */}
         <div className="flex max-h-[840px] flex-col gap-4 rounded-3xl border border-border/60 bg-surface/80 p-5">
+          {/* Search */}
           <div className="relative">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -302,7 +313,7 @@ const ServicesPage = () => {
               type="text"
               value={searchInput}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchInput(e.target.value)}
-              placeholder="Search by title or description…"
+              placeholder="Search by name, role, or quote…"
               className="h-10 w-full rounded-xl border border-border/60 bg-background pl-9 pr-9 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent focus:ring-1 focus:ring-accent"
             />
             {searchInput ? (
@@ -326,13 +337,14 @@ const ServicesPage = () => {
             ) : null}
           </div>
 
+          {/* Filters */}
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-3">
               <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-muted">
                 Filters
               </span>
               <span className="text-[11px] text-text-muted">
-                {totalCount} {totalCount === 1 ? 'service' : 'services'}
+                {totalCount} {totalCount === 1 ? 'testimonial' : 'testimonials'}
               </span>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -354,6 +366,40 @@ const ServicesPage = () => {
                   {option.label}
                 </button>
               ))}
+              <span className="mx-1 hidden h-6 w-px bg-border/60 sm:inline-block" />
+              <button
+                type="button"
+                onClick={() => {
+                  setCategoryFilter('all')
+                  setPage(1)
+                }}
+                className={[
+                  'rounded-full border px-3 py-1.5 text-xs font-semibold transition',
+                  categoryFilter === 'all'
+                    ? 'border-accent/70 bg-accent/10 text-accent'
+                    : 'border-border/60 bg-surface text-text-secondary hover:border-accent/60 hover:text-accent',
+                ].join(' ')}
+              >
+                All categories
+              </button>
+              {PROJECT_CATEGORY_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => {
+                    setCategoryFilter(option.value)
+                    setPage(1)
+                  }}
+                  className={[
+                    'rounded-full border px-3 py-1.5 text-xs font-semibold transition',
+                    categoryFilter === option.value
+                      ? 'border-accent/70 bg-accent/10 text-accent'
+                      : 'border-border/60 bg-surface text-text-secondary hover:border-accent/60 hover:text-accent',
+                  ].join(' ')}
+                >
+                  {option.label}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -363,6 +409,7 @@ const ServicesPage = () => {
             </p>
           ) : null}
 
+          {/* Scrollable list */}
           <div
             ref={listScrollRef}
             onScroll={handleListScroll}
@@ -375,7 +422,7 @@ const ServicesPage = () => {
                     key={i}
                     className="flex items-center gap-3 rounded-2xl border border-border/60 bg-surface px-3 py-3"
                   >
-                    <div className="h-12 w-12 shrink-0 animate-pulse rounded-xl bg-surface-muted" />
+                    <div className="h-12 w-12 shrink-0 animate-pulse rounded-full bg-surface-muted" />
                     <div className="flex-1 space-y-2">
                       <div className="h-3 w-1/2 animate-pulse rounded-full bg-surface-muted" />
                       <div className="h-2.5 w-3/4 animate-pulse rounded-full bg-surface-muted" />
@@ -385,16 +432,16 @@ const ServicesPage = () => {
               </ul>
             ) : items.length === 0 ? (
               <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border/60 bg-surface px-4 py-10 text-center">
-                <p className="text-sm font-medium text-text-secondary">No services yet</p>
+                <p className="text-sm font-medium text-text-secondary">No testimonials yet</p>
                 <p className="text-xs text-text-muted">
-                  Add a service to start populating the public grid.
+                  Add a client quote to start populating the homepage deck.
                 </p>
                 <button
                   type="button"
                   onClick={handleOpenCreate}
                   className="inline-flex items-center gap-2 rounded-xl bg-accent px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-accent/90"
                 >
-                  Add service
+                  Add testimonial
                 </button>
               </div>
             ) : (
@@ -416,10 +463,10 @@ const ServicesPage = () => {
                         <span className="absolute inset-y-2 left-0 w-1 rounded-full bg-accent" />
                       ) : null}
 
-                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-border/60 bg-surface-muted">
-                        {item.imageUrl ? (
+                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border border-border/60 bg-surface-muted">
+                        {item.photoUrl ? (
                           <img
-                            src={item.imageUrl}
+                            src={item.photoUrl}
                             alt=""
                             className="h-full w-full object-cover"
                             onError={(e) => {
@@ -430,7 +477,7 @@ const ServicesPage = () => {
                           />
                         ) : (
                           <span className="flex h-full w-full items-center justify-center text-base font-semibold text-text-muted">
-                            {item.title.charAt(0).toUpperCase() || '?'}
+                            {item.name.charAt(0).toUpperCase() || '?'}
                           </span>
                         )}
                       </div>
@@ -438,8 +485,11 @@ const ServicesPage = () => {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <p className="min-w-0 flex-1 truncate text-sm font-medium text-text-secondary">
-                            {item.title}
+                            {item.name}
                           </p>
+                          <span className="shrink-0 rounded-full bg-surface-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-text-secondary">
+                            {getCategoryLabel(item.category)}
+                          </span>
                           <span
                             className={[
                               'shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em]',
@@ -452,11 +502,12 @@ const ServicesPage = () => {
                           </span>
                         </div>
                         <p className="mt-0.5 truncate text-[11px] text-text-muted">
-                          /{item.slug} · #{item.displayOrder} · Updated{' '}
+                          {item.role} · #{item.displayOrder} · Updated{' '}
                           {formatShortDate(item.updatedAt)}
                         </p>
                       </div>
 
+                      {/* Kebab */}
                       <div
                         className="shrink-0"
                         ref={openMenuId === item.id ? menuRef : undefined}
@@ -467,7 +518,7 @@ const ServicesPage = () => {
                           onClick={() =>
                             setOpenMenuId((curr) => (curr === item.id ? null : item.id))
                           }
-                          aria-label={`Actions for ${item.title}`}
+                          aria-label={`Actions for ${item.name}`}
                           aria-haspopup="menu"
                           aria-expanded={openMenuId === item.id}
                           data-open={openMenuId === item.id}
@@ -565,6 +616,7 @@ const ServicesPage = () => {
             ) : null}
           </div>
 
+          {/* Footer count */}
           {items.length > 0 ? (
             <div className="flex items-center justify-between border-t border-border/40 pt-3 text-[11px] text-text-muted">
               <span>
@@ -577,6 +629,7 @@ const ServicesPage = () => {
           ) : null}
         </div>
 
+        {/* RIGHT — preview pane (homepage card replica, themed) */}
         <div className="flex max-h-[840px] min-h-0 flex-col lg:h-full">
           <div className="flex-1 min-h-0 overflow-y-auto rounded-3xl border border-border/60 bg-surface p-6 text-text-secondary [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {activeItem ? (
@@ -598,44 +651,66 @@ const ServicesPage = () => {
                   <span>Updated {formatDate(activeItem.updatedAt)}</span>
                 </div>
 
-                <article className="overflow-hidden rounded-3xl border border-border/60 bg-background">
-                  <div className="aspect-square w-full overflow-hidden bg-surface-muted">
-                    {activeItem.imageUrl ? (
-                      <img
-                        src={activeItem.imageUrl}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <span className="flex h-full w-full items-center justify-center text-text-muted">
-                        No image
+                {/* Card replica — same structure as the public deck, themed to admin tokens */}
+                <article className="overflow-hidden rounded-3xl border border-border/60 bg-background shadow-sm">
+                  <div className="flex flex-col items-center gap-6 border-b border-dashed border-border/70 px-6 py-8 sm:flex-row sm:items-end sm:gap-10 sm:px-10 sm:py-10">
+                    <div className="relative">
+                      <span className="absolute inset-0 -translate-x-2 translate-y-2 rounded-full bg-accent/15" aria-hidden />
+                      <div className="relative h-32 w-32 overflow-hidden rounded-full border border-border/60 bg-surface-muted sm:h-40 sm:w-40">
+                        {activeItem.photoUrl ? (
+                          <img
+                            src={activeItem.photoUrl}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <span className="flex h-full w-full items-center justify-center text-3xl font-semibold text-text-muted">
+                            {activeItem.name.charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-1 flex-col items-center gap-2 text-center sm:items-start sm:text-left">
+                      <h2 className="text-3xl font-semibold uppercase leading-tight tracking-tight text-text-primary sm:text-4xl">
+                        {activeItem.name}
+                      </h2>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted sm:text-sm">
+                        {activeItem.role}
+                      </p>
+                      <span className="mt-2 inline-flex items-center rounded-full bg-accent/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-accent sm:text-xs">
+                        {getCategoryLabel(activeItem.category)}
                       </span>
-                    )}
+                    </div>
                   </div>
-                  <div className="space-y-2 px-6 py-5">
-                    <h2 className="text-2xl font-semibold uppercase tracking-tight text-text-primary">
-                      {activeItem.title}
-                    </h2>
-                    <p className="text-sm text-text-secondary">{activeItem.description}</p>
-                    <p className="text-[11px] text-text-muted">/services/{activeItem.slug}</p>
-                  </div>
+
+                  <blockquote className="px-6 py-8 text-sm leading-relaxed text-text-secondary sm:px-10 sm:py-10 sm:text-base">
+                    <span className="mr-1 select-none text-2xl font-semibold text-text-muted">“</span>
+                    {activeItem.quote}
+                    <span className="ml-1 select-none text-2xl font-semibold text-text-muted">”</span>
+                  </blockquote>
                 </article>
 
-                {activeItem.longDescription ? (
-                  <section className="space-y-2 rounded-2xl border border-border/60 bg-surface-muted/40 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
-                      Detail page body
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-border/60 bg-surface-muted/40 p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-muted">
+                      Created
                     </p>
-                    <p className="whitespace-pre-line text-sm leading-relaxed text-text-secondary">
-                      {activeItem.longDescription}
+                    <p className="mt-1 text-xs text-text-secondary">{formatDate(activeItem.createdAt)}</p>
+                  </div>
+                  <div className="rounded-2xl border border-border/60 bg-surface-muted/40 p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-muted">
+                      Category
                     </p>
-                  </section>
-                ) : (
-                  <p className="rounded-2xl border border-dashed border-border/60 bg-surface px-4 py-3 text-xs text-text-muted">
-                    No long description yet — the /services/{activeItem.slug} detail page will
-                    fall back to the short description.
-                  </p>
-                )}
+                    <p className="mt-1 text-xs text-text-secondary">{getCategoryLabel(activeItem.category)}</p>
+                  </div>
+                  <div className="rounded-2xl border border-border/60 bg-surface-muted/40 p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-muted">
+                      Quote length
+                    </p>
+                    <p className="mt-1 text-xs text-text-secondary">{activeItem.quote.length} characters</p>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="flex h-full flex-col items-center justify-center gap-2 py-16 text-center">
@@ -648,13 +723,12 @@ const ServicesPage = () => {
                     strokeWidth={1.5}
                     className="h-6 w-6"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 6.75V5.25A2.25 2.25 0 0 1 12 3h0a2.25 2.25 0 0 1 2.25 2.25v1.5" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8.25A2.25 2.25 0 0 1 5.25 6h13.5A2.25 2.25 0 0 1 21 8.25v8.25a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 16.5V8.25Z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8.25c0-1.243 1.007-2.25 2.25-2.25h13.5c1.243 0 2.25 1.007 2.25 2.25v7.5a2.25 2.25 0 0 1-2.25 2.25H7.5L3 21V8.25Z" />
                   </svg>
                 </div>
-                <p className="text-sm font-medium text-text-secondary">Select a service</p>
+                <p className="text-sm font-medium text-text-secondary">Select a testimonial</p>
                 <p className="text-xs text-text-muted">
-                  Pick one from the list to preview the grid card.
+                  Pick one from the list to preview the homepage card.
                 </p>
               </div>
             )}
@@ -662,11 +736,10 @@ const ServicesPage = () => {
         </div>
       </div>
 
-      <ServiceFormModal
+      <TestimonialFormModal
         isOpen={isFormOpen}
         mode={formMode}
-        initialService={editingItem}
-        existingSlugs={existingSlugs}
+        initialTestimonial={editingItem}
         onClose={() => setFormOpen(false)}
         onSubmit={handleSubmit}
       />
@@ -677,10 +750,10 @@ const ServicesPage = () => {
         className="max-w-md"
       >
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-text-secondary">Delete service</h2>
+          <h2 className="text-lg font-semibold text-text-secondary">Delete testimonial</h2>
           <p className="text-sm text-text-muted">
-            Remove{' '}
-            <span className="font-semibold text-text-secondary">{deleteTarget?.title}</span>?
+            Remove the quote from{' '}
+            <span className="font-semibold text-text-secondary">{deleteTarget?.name}</span>?
             This cannot be undone.
           </p>
           {deleteError ? (
@@ -712,4 +785,4 @@ const ServicesPage = () => {
   )
 }
 
-export default ServicesPage
+export default TestimonialsPage

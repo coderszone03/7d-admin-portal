@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import JobPostsTab from './careers/JobPostsTab'
 import ApplicantsTab from './careers/ApplicantsTab'
+import GalleryTab from './careers/GalleryTab'
 import type { JobPost } from '../assets/constants/jobPosts'
 import { APPLICANTS, type Applicant } from '../assets/constants/applicants'
 import {
@@ -10,7 +11,7 @@ import {
   updateCareer,
 } from '../lib/api/careers'
 
-type TabId = 'posts' | 'applicants'
+type TabId = 'posts' | 'applicants' | 'gallery'
 
 const CareersPage = () => {
   const [posts, setPosts] = useState<JobPost[]>([])
@@ -160,6 +161,19 @@ const CareersPage = () => {
               {applicants.length}
             </span>
           </button>
+          <button
+            role="tab"
+            type="button"
+            aria-selected={activeTab === 'gallery'}
+            onClick={() => setActiveTab('gallery')}
+            className={`inline-flex h-9 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition ${
+              activeTab === 'gallery'
+                ? 'bg-accent text-white shadow-[0_8px_18px_-12px_rgba(99,102,241,0.7)]'
+                : 'text-text-muted hover:text-text-secondary'
+            }`}
+          >
+            Gallery
+          </button>
         </div>
         {unreadApplicants > 0 ? (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">
@@ -182,13 +196,15 @@ const CareersPage = () => {
           onUpdate={handleUpdate}
           onDelete={handleDelete}
         />
-      ) : (
+      ) : activeTab === 'applicants' ? (
         <ApplicantsTab
           posts={posts}
           applicants={applicants}
           setApplicants={setApplicants}
           onJumpToPost={handleJumpToPost}
         />
+      ) : (
+        <GalleryTab />
       )}
     </section>
   )
