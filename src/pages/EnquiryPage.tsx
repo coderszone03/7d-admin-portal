@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
-import { ENQUIRIES, type Enquiry } from '../assets/constants/enquiries'
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
+import type { Enquiry } from '../assets/constants/enquiries'
+import { fetchContacts, deleteContact } from '../lib/api/contacts'
 
 const parseSender = (from: string): { name: string; email: string } => {
   const match = from.match(/^(.*?)\s*<(.+)>\s*$/)
@@ -70,18 +71,37 @@ const bodyPreview = (body: string): string =>
   body.replace(/\s+/g, ' ').trim().slice(0, 110)
 
 const EnquiryPage = () => {
-  const [enquiries, setEnquiries] = useState<Enquiry[]>(() =>
-    [...ENQUIRIES].sort(
-      (a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime(),
-    ),
-  )
-  const [selectedId, setSelectedId] = useState<string | null>(() => {
-    const firstUnread = ENQUIRIES.find((e) => !e.read)
-    return firstUnread?.id ?? ENQUIRIES[0]?.id ?? null
-  })
+  const [enquiries, setEnquiries] = useState<Enquiry[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [searchInput, setSearchInput] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [readingMobile, setReadingMobile] = useState(false)
+
+  const loadContacts = useCallback(async () => {
+    setIsLoading(true)
+    setLoadError(null)
+    try {
+      const { items } = await fetchContacts({ pageSize: 100 })
+      const sorted = items.sort(
+        (a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime(),
+      )
+      setEnquiries(sorted)
+      setSelectedId((prev) => {
+        if (prev && sorted.some((e) => e.id === prev)) return prev
+        return sorted[0]?.id ?? null
+      })
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Unable to load enquiries.')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadContacts()
+  }, [loadContacts])
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
@@ -124,6 +144,58 @@ const EnquiryPage = () => {
     if (!selected) return
     setEnquiries((prev) =>
       prev.map((e) => (e.id === selected.id ? { ...e, read: false } : e)),
+    )
+  }
+
+  const handleDelete = async () => {
+    if (!selected) return
+    const idToDelete = selected.id
+    try {
+      await deleteContact(idToDelete)
+      setEnquiries((prev) => prev.filter((e) => e.id !== idToDelete))
+      setSelectedId((prev) => {
+        if (prev !== idToDelete) return prev
+        const remaining = enquiries.filter((e) => e.id !== idToDelete)
+        return remaining[0]?.id ?? null
+      })
+      setReadingMobile(false)
+    } catch {
+      // silently fail — could add toast later
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <section className="space-y-6">
+        <header className="space-y-1">
+          <p className="text-xs uppercase tracking-[0.25em] text-text-muted">Inbox</p>
+          <h1 className="text-2xl font-semibold text-text-secondary">Enquiries</h1>
+        </header>
+        <div className="flex items-center justify-center py-20 text-sm text-text-muted">
+          Loading enquiries…
+        </div>
+      </section>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <section className="space-y-6">
+        <header className="space-y-1">
+          <p className="text-xs uppercase tracking-[0.25em] text-text-muted">Inbox</p>
+          <h1 className="text-2xl font-semibold text-text-secondary">Enquiries</h1>
+        </header>
+        <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
+          <p className="text-sm text-danger">{loadError}</p>
+          <button
+            type="button"
+            onClick={loadContacts}
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent/90"
+          >
+            Retry
+          </button>
+        </div>
+      </section>
     )
   }
 
@@ -352,6 +424,27 @@ const EnquiryPage = () => {
                     />
                   </svg>
                   Mark unread
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 px-3 py-1.5 text-xs font-medium text-danger transition hover:border-danger/60 hover:bg-danger/10"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={1.5}
+                    className="h-3.5 w-3.5"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                  Delete
                 </button>
               </div>
 

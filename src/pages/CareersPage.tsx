@@ -1,15 +1,19 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import JobPostsTab from './careers/JobPostsTab'
 import ApplicantsTab from './careers/ApplicantsTab'
 import GalleryTab from './careers/GalleryTab'
 import type { JobPost } from '../assets/constants/jobPosts'
-import { APPLICANTS, type Applicant } from '../assets/constants/applicants'
+import type { Applicant } from '../assets/constants/applicants'
 import {
   createCareer,
   deleteCareer,
   fetchCareers,
   updateCareer,
 } from '../lib/api/careers'
+import {
+  fetchCareerApplications,
+  deleteCareerApplication,
+} from '../lib/api/careerApplications'
 
 type TabId = 'posts' | 'applicants' | 'gallery'
 
@@ -18,11 +22,12 @@ const CareersPage = () => {
   const [isLoadingPosts, setIsLoadingPosts] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
 
-  const [applicants, setApplicants] = useState<Applicant[]>(() => [...APPLICANTS])
+  const [applicants, setApplicants] = useState<Applicant[]>([])
+  const [isLoadingApplicants, setIsLoadingApplicants] = useState(true)
   const [activeTab, setActiveTab] = useState<TabId>('posts')
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null)
 
-  const loadPosts = async () => {
+  const loadPosts = useCallback(async () => {
     setIsLoadingPosts(true)
     setLoadError(null)
     try {
@@ -37,32 +42,24 @@ const CareersPage = () => {
     } finally {
       setIsLoadingPosts(false)
     }
-  }
+  }, [])
 
-  useEffect(() => {
-    let isMounted = true
-    ;(async () => {
-      setIsLoadingPosts(true)
-      setLoadError(null)
-      try {
-        const { items } = await fetchCareers({ pageSize: 50 })
-        if (!isMounted) return
-        setPosts(items)
-        setSelectedPostId((prev) => {
-          if (prev && items.some((p) => p.id === prev)) return prev
-          return items[0]?.id ?? null
-        })
-      } catch (err) {
-        if (!isMounted) return
-        setLoadError(err instanceof Error ? err.message : 'Unable to load job posts.')
-      } finally {
-        if (isMounted) setIsLoadingPosts(false)
-      }
-    })()
-    return () => {
-      isMounted = false
+  const loadApplicants = useCallback(async () => {
+    setIsLoadingApplicants(true)
+    try {
+      const { items } = await fetchCareerApplications({ pageSize: 100 })
+      setApplicants(items)
+    } catch {
+      // fail silently — applicants tab will show empty state
+    } finally {
+      setIsLoadingApplicants(false)
     }
   }, [])
+
+  useEffect(() => {
+    loadPosts()
+    loadApplicants()
+  }, [loadPosts, loadApplicants])
 
   const handleCreate = async (post: JobPost) => {
     await createCareer(post)
@@ -92,6 +89,11 @@ const CareersPage = () => {
     [applicants],
   )
 
+  const handleDeleteApplicant = async (id: string) => {
+    await deleteCareerApplication(id)
+    setApplicants((prev) => prev.filter((a) => a.id !== id))
+  }
+
   const handleJumpToPost = (postId: string) => {
     setSelectedPostId(postId)
     setActiveTab('posts')
@@ -105,8 +107,7 @@ const CareersPage = () => {
           Roles &amp; applicants
         </h1>
         <p className="text-sm text-text-muted">
-          Create job postings and triage applicants. Applicants are dummy data until the
-          API is ready.
+          Create job postings and triage applicants.
         </p>
       </header>
 
@@ -200,8 +201,10 @@ const CareersPage = () => {
         <ApplicantsTab
           posts={posts}
           applicants={applicants}
+          isLoading={isLoadingApplicants}
           setApplicants={setApplicants}
           onJumpToPost={handleJumpToPost}
+          onDelete={handleDeleteApplicant}
         />
       ) : (
         <GalleryTab />

@@ -12,6 +12,8 @@ export type Applicant = {
   email: string
   phone: string
   coverNote: string
+  portfolioLink?: string
+  resumeUrl?: string
   status: ApplicantStatus
   appliedAt: string
   read: boolean

@@ -8,8 +8,10 @@ import type { JobPost } from '../../assets/constants/jobPosts'
 type ApplicantsTabProps = {
   posts: JobPost[]
   applicants: Applicant[]
+  isLoading?: boolean
   setApplicants: (updater: (prev: Applicant[]) => Applicant[]) => void
   onJumpToPost: (postId: string) => void
+  onDelete?: (id: string) => Promise<void>
 }
 
 const STATUS_CLASSES: Record<ApplicantStatus, string> = {
@@ -78,8 +80,10 @@ const formatFullTime = (iso: string): string => {
 const ApplicantsTab = ({
   posts,
   applicants,
+  isLoading,
   setApplicants,
   onJumpToPost,
+  onDelete,
 }: ApplicantsTabProps) => {
   const [searchInput, setSearchInput] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
@@ -141,6 +145,14 @@ const ApplicantsTab = ({
         prev.map((a) => (a.id === applicant.id ? { ...a, read: true } : a)),
       )
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20 text-sm text-text-muted">
+        Loading applicants…
+      </div>
+    )
   }
 
   return (
@@ -407,6 +419,60 @@ const ApplicantsTab = ({
                     </span>
                   </div>
 
+                  {/* Portfolio link */}
+                  {selected.portfolioLink ? (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
+                        Portfolio
+                      </p>
+                      <a
+                        href={selected.portfolioLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-accent hover:underline"
+                      >
+                        {selected.portfolioLink}
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={1.8}
+                          className="h-3 w-3"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M7 17 17 7M9 7h8v8" />
+                        </svg>
+                      </a>
+                    </div>
+                  ) : null}
+
+                  {/* Resume */}
+                  {selected.resumeUrl ? (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
+                        Resume
+                      </p>
+                      <a
+                        href={selected.resumeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-border/60 px-3 py-1.5 text-xs font-medium text-text-secondary transition hover:border-accent/60 hover:text-accent"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={1.5}
+                          className="h-3.5 w-3.5"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Download resume
+                      </a>
+                    </div>
+                  ) : null}
+
                   {/* Cover note */}
                   {selected.coverNote ? (
                     <div>
@@ -416,6 +482,29 @@ const ApplicantsTab = ({
                       <pre className="mt-1 whitespace-pre-wrap break-words font-sans text-sm leading-relaxed text-text-secondary">
                         {selected.coverNote}
                       </pre>
+                    </div>
+                  ) : null}
+
+                  {/* Delete */}
+                  {onDelete ? (
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={() => onDelete(selected.id)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-danger/40 px-3 py-1.5 text-xs font-medium text-danger transition hover:bg-danger/10"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={1.5}
+                          className="h-3.5 w-3.5"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Delete application
+                      </button>
                     </div>
                   ) : null}
                 </div>

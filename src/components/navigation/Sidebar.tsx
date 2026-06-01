@@ -258,27 +258,21 @@ const Sidebar = ({ isMobileOpen = false, onClose }: SidebarProps) => {
       )
     })
 
-  const SidebarBody = () => (
-    <>
-      <div className="relative flex h-16 items-center gap-2 px-6 after:pointer-events-none after:absolute after:bottom-0 after:left-0 after:h-px after:w-full after:bg-gradient-to-r after:from-transparent after:via-border/45 after:to-transparent after:content-['']">
-        <BrandLogo className="h-9 w-auto" />
-        <div>
-          <p className="text-sm font-medium text-text-secondary">7D design</p>
-          <p className="text-xs text-text-muted">Control Center</p>
-        </div>
-      </div>
-      <nav className="flex flex-1 flex-col gap-1 px-4 py-6">{renderNavigationItems()}</nav>
-      <div className="relative px-6 py-5 text-xs text-text-muted before:pointer-events-none before:absolute before:top-0 before:left-0 before:h-px before:w-full before:bg-gradient-to-r before:from-transparent before:via-border/35 before:to-transparent before:content-['']">
-        <p className="font-medium text-text-secondary">Need help?</p>
-        <p>Reach out to your platform administrator.</p>
-      </div>
-    </>
-  )
-
   return (
     <>
       <aside className="hidden h-screen w-64 flex-col bg-surface/85 backdrop-blur md:flex relative after:pointer-events-none after:absolute after:top-0 after:right-0 after:h-full after:w-px after:bg-gradient-to-b after:from-transparent after:via-border/45 after:to-transparent after:content-['']">
-        <SidebarBody />
+        <div className="relative flex h-16 shrink-0 items-center gap-2 px-6 after:pointer-events-none after:absolute after:bottom-0 after:left-0 after:h-px after:w-full after:bg-gradient-to-r after:from-transparent after:via-border/45 after:to-transparent after:content-['']">
+          <BrandLogo className="h-9 w-auto" />
+          <div>
+            <p className="text-sm font-medium text-text-secondary">7D design</p>
+            <p className="text-xs text-text-muted">Control Center</p>
+          </div>
+        </div>
+        <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-4 py-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden hover:[scrollbar-width:thin] hover:[&::-webkit-scrollbar]:block hover:[&::-webkit-scrollbar]:w-1 hover:[&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-border/40 hover:[&::-webkit-scrollbar-track]:bg-transparent">{renderNavigationItems()}</nav>
+        <div className="relative shrink-0 px-6 py-5 text-xs text-text-muted before:pointer-events-none before:absolute before:top-0 before:left-0 before:h-px before:w-full before:bg-gradient-to-r before:from-transparent before:via-border/35 before:to-transparent before:content-['']">
+          <p className="font-medium text-text-secondary">Need help?</p>
+          <p>Reach out to your platform administrator.</p>
+        </div>
       </aside>
       {isMobileOpen ? (
         <div className="fixed inset-0 z-50 flex md:hidden">
