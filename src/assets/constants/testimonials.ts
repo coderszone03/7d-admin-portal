@@ -11,7 +11,7 @@ export const seedTestimonials: Testimonial[] = [
     id: 't-1',
     name: 'Jasmine Davenport',
     role: 'CEO of XYZ',
-    category: 'branding',
+    category: 'Branding',
     quote:
       "7D Design rebuilt our identity from the ground up. The system they delivered isn't just a logo — it's a language our whole team now speaks. We've launched three campaigns since with zero brand drift.",
     photoUrl: placeholderPhoto('JD'),
@@ -24,7 +24,7 @@ export const seedTestimonials: Testimonial[] = [
     id: 't-2',
     name: 'Raghav Menon',
     role: 'Founder, Northwind Studios',
-    category: 'video',
+    category: 'Video Production',
     quote:
       'They turned a six-week launch film into a four-week sprint without ever sacrificing quality. Direction, edit, sound — all dialled in. The kind of partner you keep on speed dial.',
     photoUrl: placeholderPhoto('RM'),
@@ -37,7 +37,7 @@ export const seedTestimonials: Testimonial[] = [
     id: 't-3',
     name: 'Priya Iyer',
     role: 'VP Product, Lumen Health',
-    category: 'uiux',
+    category: 'UI/UX',
     quote:
       'Our patient portal redesign moved task completion up 38% in the first quarter post-launch. The team brought rigour to research and warmth to craft — rare combination.',
     photoUrl: placeholderPhoto('PI'),
@@ -50,7 +50,7 @@ export const seedTestimonials: Testimonial[] = [
     id: 't-4',
     name: 'Daniel Park',
     role: 'Head of Marketing, Greyhive',
-    category: 'ad',
+    category: 'Performance Marketing',
     quote:
       'Our seasonal ad pulled 4.2x ROAS in week one. The strategy was tight, the creative was sharp, and the post-launch readout helped us frame the next quarter.',
     photoUrl: placeholderPhoto('DP'),
@@ -63,7 +63,7 @@ export const seedTestimonials: Testimonial[] = [
     id: 't-5',
     name: 'Aisha Khan',
     role: 'Creative Director, Sanrey',
-    category: 'branding',
+    category: 'Branding',
     quote:
       'I came in with a half-formed brief and left with a brand book that answered questions we hadn’t even thought to ask. They listen first and design second.',
     photoUrl: placeholderPhoto('AK'),
@@ -76,7 +76,7 @@ export const seedTestimonials: Testimonial[] = [
     id: 't-6',
     name: 'Vivek Rao',
     role: 'Co-founder, Champa Sweets',
-    category: 'branding',
+    category: 'Branding',
     quote:
       'Our packaging finally matches what we put in the box. Footfall is up, but more importantly the brand finally feels like ours.',
     photoUrl: placeholderPhoto('VR'),
@@ -89,7 +89,7 @@ export const seedTestimonials: Testimonial[] = [
     id: 't-7',
     name: 'Hannah Wright',
     role: 'CMO, Beacon Logistics',
-    category: 'video',
+    category: 'Video Production',
     quote:
       'We needed a corporate film that felt human, not stiff. They cast it perfectly, kept the schedule honest, and delivered a piece our drivers actually share.',
     photoUrl: placeholderPhoto('HW'),
@@ -102,7 +102,7 @@ export const seedTestimonials: Testimonial[] = [
     id: 't-8',
     name: 'Marco Silva',
     role: 'Director, Folk Art Foundation',
-    category: 'ad',
+    category: 'Performance Marketing',
     quote:
       'A small budget, a tight window, and a campaign that ended up on the front page. They treated our cause like it was their own.',
     photoUrl: placeholderPhoto('MS'),

@@ -2,6 +2,10 @@ import type {
   Testimonial,
   TestimonialFormPayload,
 } from '../../components/testimonials/types'
+import {
+  DEFAULT_TESTIMONIAL_CATEGORIES,
+  mergeTestimonialCategories,
+} from '../../components/testimonials/types'
 import { seedTestimonials } from '../../assets/constants/testimonials'
 
 // In-memory store for the dummy phase. Module-level so it survives across page navigations
@@ -60,6 +64,18 @@ export const fetchTestimonials = async (
 export const fetchTestimonialById = async (id: string): Promise<Testimonial | null> => {
   const found = store.find((t) => t.id === id) ?? null
   return wait(found ? { ...found } : null)
+}
+
+// Distinct categories currently in use, merged with the suggested defaults. Powers the
+// filter bar and the builder's category chips. Categories are free-form, so this is the
+// live source of truth rather than a fixed enum.
+export const fetchTestimonialCategories = async (): Promise<string[]> => {
+  return wait(
+    mergeTestimonialCategories(
+      DEFAULT_TESTIMONIAL_CATEGORIES,
+      store.map((t) => t.category),
+    ),
+  )
 }
 
 export const createTestimonial = async (

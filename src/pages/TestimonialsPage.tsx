@@ -11,14 +11,12 @@ import type {
   Testimonial,
   TestimonialFormPayload,
 } from '../components/testimonials/types'
-import {
-  PROJECT_CATEGORY_OPTIONS,
-  getCategoryLabel,
-} from '../components/portfolio/projects/types'
+import { DEFAULT_TESTIMONIAL_CATEGORIES } from '../components/testimonials/types'
 import {
   createTestimonial,
   deleteTestimonial,
   fetchTestimonials,
+  fetchTestimonialCategories,
   updateTestimonial,
 } from '../lib/api/testimonials'
 
@@ -62,6 +60,9 @@ const TestimonialsPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [categories, setCategories] = useState<string[]>(
+    DEFAULT_TESTIMONIAL_CATEGORIES,
+  )
 
   const [activeId, setActiveId] = useState<string | null>(null)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
@@ -84,6 +85,19 @@ const TestimonialsPage = () => {
     }, 250)
     return () => window.clearTimeout(handle)
   }, [searchInput])
+
+  const loadCategories = async () => {
+    try {
+      const list = await fetchTestimonialCategories()
+      setCategories(list)
+    } catch {
+      // Non-fatal — fall back to the defaults already in state.
+    }
+  }
+
+  useEffect(() => {
+    void loadCategories()
+  }, [])
 
   // Close kebab menu on outside click / escape.
   useEffect(() => {
@@ -174,6 +188,7 @@ const TestimonialsPage = () => {
         if (previous && nextItems.some((item) => item.id === previous)) return previous
         return nextItems[0]?.id ?? null
       })
+      void loadCategories()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load testimonials.')
     } finally {
@@ -382,22 +397,22 @@ const TestimonialsPage = () => {
               >
                 All categories
               </button>
-              {PROJECT_CATEGORY_OPTIONS.map((option) => (
+              {categories.map((option) => (
                 <button
-                  key={option.value}
+                  key={option}
                   type="button"
                   onClick={() => {
-                    setCategoryFilter(option.value)
+                    setCategoryFilter(option)
                     setPage(1)
                   }}
                   className={[
                     'rounded-full border px-3 py-1.5 text-xs font-semibold transition',
-                    categoryFilter === option.value
+                    categoryFilter === option
                       ? 'border-accent/70 bg-accent/10 text-accent'
                       : 'border-border/60 bg-surface text-text-secondary hover:border-accent/60 hover:text-accent',
                   ].join(' ')}
                 >
-                  {option.label}
+                  {option}
                 </button>
               ))}
             </div>
@@ -488,7 +503,7 @@ const TestimonialsPage = () => {
                             {item.name}
                           </p>
                           <span className="shrink-0 rounded-full bg-surface-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-text-secondary">
-                            {getCategoryLabel(item.category)}
+                            {item.category}
                           </span>
                           <span
                             className={[
@@ -679,7 +694,7 @@ const TestimonialsPage = () => {
                         {activeItem.role}
                       </p>
                       <span className="mt-2 inline-flex items-center rounded-full bg-accent/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-accent sm:text-xs">
-                        {getCategoryLabel(activeItem.category)}
+                        {activeItem.category}
                       </span>
                     </div>
                   </div>
@@ -702,7 +717,7 @@ const TestimonialsPage = () => {
                     <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-muted">
                       Category
                     </p>
-                    <p className="mt-1 text-xs text-text-secondary">{getCategoryLabel(activeItem.category)}</p>
+                    <p className="mt-1 text-xs text-text-secondary">{activeItem.category}</p>
                   </div>
                   <div className="rounded-2xl border border-border/60 bg-surface-muted/40 p-3">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-muted">
@@ -740,6 +755,7 @@ const TestimonialsPage = () => {
         isOpen={isFormOpen}
         mode={formMode}
         initialTestimonial={editingItem}
+        existingCategories={categories}
         onClose={() => setFormOpen(false)}
         onSubmit={handleSubmit}
       />

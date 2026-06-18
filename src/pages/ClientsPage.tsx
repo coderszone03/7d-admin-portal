@@ -8,6 +8,10 @@ import {
 } from 'react'
 import Modal from '../components/common/Modal'
 import {
+  validateImageDimensions,
+  validatePreviewDimensions,
+} from '../components/portfolio/projects/types'
+import {
   createClient,
   deleteClient,
   fetchClients,
@@ -19,6 +23,14 @@ type Client = ApiClient
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024 // 2MB
 const FILE_TYPE_WHITELIST = ['image/png', 'image/jpeg', 'image/jpg']
+
+// Logos must be square (1:1) so they sit consistently in the directory grid.
+const MIN_LOGO_DIMENSION = 400
+const CLIENT_LOGO_SPEC = {
+  label: 'Client logo',
+  width: MIN_LOGO_DIMENSION,
+  height: MIN_LOGO_DIMENSION,
+}
 const ITEMS_PER_PAGE = 10
 const MAX_NAME_LENGTH = 100
 const MAX_DESCRIPTION_LENGTH = 300
@@ -185,7 +197,7 @@ const ClientsPage = () => {
     )
   }
 
-  const handleLogoChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleLogoChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const input = event.target
     const file = input.files?.[0] ?? null
 
@@ -206,6 +218,14 @@ const ClientsPage = () => {
     if (file.size > MAX_FILE_SIZE) {
       setLogoFile(null)
       setErrors((prev) => ({ ...prev, logo: 'Logo must be 2MB or smaller.' }))
+      input.value = ''
+      return
+    }
+
+    const dimensionCheck = await validateImageDimensions(file, CLIENT_LOGO_SPEC)
+    if (!dimensionCheck.ok) {
+      setLogoFile(null)
+      setErrors((prev) => ({ ...prev, logo: dimensionCheck.error }))
       input.value = ''
       return
     }
@@ -280,6 +300,16 @@ const ClientsPage = () => {
     ) {
       setErrors(validationErrors)
       return
+    }
+
+    // On edit, the admin may keep the existing logo (no new file). Re-check that the
+    // retained image still satisfies the square spec, since older logos predate it.
+    if (formMode === 'edit' && !logoFile && logoPreview) {
+      const dimensionCheck = await validatePreviewDimensions(logoPreview, CLIENT_LOGO_SPEC)
+      if (!dimensionCheck.ok) {
+        setErrors((prev) => ({ ...prev, logo: dimensionCheck.error }))
+        return
+      }
     }
 
     setIsSubmitting(true)
@@ -674,7 +704,7 @@ const ClientsPage = () => {
 
           <div className="space-y-3">
             <p className="text-xs font-semibold uppercase text-text-muted">
-              Client logo
+              Client logo (square)
               {formMode === 'edit' ? (
                 <span className="ml-2 text-[10px] font-medium normal-case text-text-muted/80">
                   (leave empty to keep current)
@@ -705,6 +735,9 @@ const ClientsPage = () => {
               <div className="space-y-1">
                 <p className="text-sm font-medium text-text-secondary">
                   {formMode === 'edit' ? 'Replace the logo' : 'Drag & drop your logo'}
+                </p>
+                <p className="text-xs text-text-muted">
+                  Square (1:1) image — at least {MIN_LOGO_DIMENSION}×{MIN_LOGO_DIMENSION}px.
                 </p>
                 <p className="text-xs text-text-muted">JPG or PNG, up to 2MB.</p>
               </div>

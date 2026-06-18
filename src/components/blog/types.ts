@@ -1,3 +1,12 @@
+// Cover image must use a 502×303 landscape orientation to match the public blog
+// detail hero. validateImageDimensions enforces this aspect ratio (±3%) and a
+// minimum size of 502×303. Inline content images are unconstrained.
+export const BLOG_COVER_IMAGE_SPEC = {
+  label: 'Cover image',
+  width: 502,
+  height: 303,
+}
+
 export type BlogContentBlockType = 'heading' | 'paragraph' | 'list' | 'image'
 
 export type BlogContentBlock = {

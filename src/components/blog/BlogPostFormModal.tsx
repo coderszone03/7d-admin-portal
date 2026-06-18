@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import Modal from '../common/Modal'
 import type { BlogContentBlock, BlogContentBlockType, BlogPost } from './types'
+import { BLOG_COVER_IMAGE_SPEC } from './types'
+import {
+  validateImageDimensions,
+  validatePreviewDimensions,
+} from '../portfolio/projects/types'
 import RichTextEditor from '../common/RichTextEditor'
 import type { BlogCategory } from '../../lib/api/blog'
 
@@ -164,11 +169,19 @@ const BlogPostFormModal = ({
     handleFieldChange('title', title)
   }
 
-  const handleCoverChange = (file: File | null) => {
+  const handleCoverChange = async (file: File | null) => {
     if (!file) {
       handleFieldChange('coverPreview', null)
       return
     }
+
+    // Cover image must match the 502×303 landscape orientation used by the public hero.
+    const dimensionCheck = await validateImageDimensions(file, BLOG_COVER_IMAGE_SPEC)
+    if (!dimensionCheck.ok) {
+      setErrors((previous) => ({ ...previous, coverPreview: dimensionCheck.error }))
+      return
+    }
+
     const reader = new FileReader()
     reader.onload = (event) => {
       if (typeof event.target?.result === 'string') {
@@ -340,6 +353,17 @@ const BlogPostFormModal = ({
 
     if (activeStepIndex === 0) {
       const nextErrors = validateDetailsStep()
+      // Re-check the cover's 502×303 orientation, covering edit mode where an existing
+      // cover is pre-loaded as a preview without passing through handleCoverChange.
+      if (!nextErrors.coverPreview && values.coverPreview) {
+        const dimensionCheck = await validatePreviewDimensions(
+          values.coverPreview,
+          BLOG_COVER_IMAGE_SPEC,
+        )
+        if (!dimensionCheck.ok) {
+          nextErrors.coverPreview = dimensionCheck.error
+        }
+      }
       if (Object.keys(nextErrors).length) {
         setErrors(nextErrors)
         return
@@ -716,7 +740,9 @@ const BlogPostFormModal = ({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-text-muted">Cover image</label>
+                  <label className="text-xs font-medium text-text-muted">
+                    Cover image (502×303)
+                  </label>
                   <div className="flex items-center gap-3">
                     <label className="inline-flex cursor-pointer items-center justify-center rounded-2xl border border-dashed border-border/60 bg-background/60 px-4 py-2 text-xs font-medium text-text-secondary hover:border-accent/60 hover:text-accent">
                       <input
@@ -739,6 +765,9 @@ const BlogPostFormModal = ({
                       </div>
                     ) : null}
                   </div>
+                  <p className="text-[11px] text-text-muted">
+                    Use a 502×303 landscape image (1.66:1) to match the blog hero.
+                  </p>
                   {errors.coverPreview ? (
                     <p className="mt-1 text-xs text-error">{errors.coverPreview}</p>
                   ) : null}

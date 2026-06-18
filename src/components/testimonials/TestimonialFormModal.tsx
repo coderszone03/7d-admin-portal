@@ -1,16 +1,16 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import Modal from '../common/Modal'
+import { validateImageDimensions } from '../portfolio/projects/types'
 import {
-  PROJECT_CATEGORY_OPTIONS,
-  validateImageDimensions,
-} from '../portfolio/projects/types'
-import {
+  DEFAULT_TESTIMONIAL_CATEGORIES,
+  MAX_CATEGORY_LENGTH,
   MAX_NAME_LENGTH,
   MAX_PHOTO_SIZE,
   MAX_QUOTE_LENGTH,
   MAX_ROLE_LENGTH,
   PHOTO_MIME_TYPES,
   TESTIMONIAL_PHOTO_SPEC,
+  mergeTestimonialCategories,
   type Testimonial,
   type TestimonialFormPayload,
   type TestimonialFormValues,
@@ -20,6 +20,9 @@ type TestimonialFormModalProps = {
   isOpen: boolean
   mode: 'create' | 'edit'
   initialTestimonial: Testimonial | null
+  // Categories already in use across the directory — merged with the defaults so
+  // existing labels stay selectable. Admins can still add brand-new categories.
+  existingCategories?: string[]
   onClose: () => void
   onSubmit: (payload: TestimonialFormPayload) => Promise<void> | void
 }
@@ -76,6 +79,7 @@ const TestimonialFormModal = ({
   isOpen,
   mode,
   initialTestimonial,
+  existingCategories = [],
   onClose,
   onSubmit,
 }: TestimonialFormModalProps) => {
@@ -91,12 +95,50 @@ const TestimonialFormModal = ({
   const [isQuoteHovered, setIsQuoteHovered] = useState(false)
   const [quoteHasOverflow, setQuoteHasOverflow] = useState(false)
 
+  // Categories the admin has added during this session (before save), kept separate
+  // so they persist while the form is open even if not yet selected.
+  const [addedCategories, setAddedCategories] = useState<string[]>([])
+  const [newCategory, setNewCategory] = useState('')
+
+  const categoryOptions = useMemo(
+    () =>
+      mergeTestimonialCategories(
+        DEFAULT_TESTIMONIAL_CATEGORIES,
+        existingCategories,
+        addedCategories,
+        values.category ? [values.category] : [],
+      ),
+    [existingCategories, addedCategories, values.category],
+  )
+
+  const handleAddCategory = () => {
+    const label = newCategory.trim()
+    if (!label) return
+    if (label.length > MAX_CATEGORY_LENGTH) {
+      setErrors((prev) => ({
+        ...prev,
+        category: `Keep the category under ${MAX_CATEGORY_LENGTH} characters.`,
+      }))
+      return
+    }
+    const existing = categoryOptions.find(
+      (option) => option.toLowerCase() === label.toLowerCase(),
+    )
+    const canonical = existing ?? label
+    if (!existing) setAddedCategories((prev) => [...prev, canonical])
+    setValues((prev) => ({ ...prev, category: canonical }))
+    setNewCategory('')
+    setErrors((prev) => ({ ...prev, category: undefined }))
+  }
+
   useEffect(() => {
     if (!isOpen) return
     setValues(buildInitialValues(initialTestimonial))
     setErrors({})
     setFormError(null)
     setActiveStepIndex(0)
+    setAddedCategories([])
+    setNewCategory('')
     photoInputResetToken.current += 1
   }, [initialTestimonial, isOpen])
 
@@ -207,7 +249,7 @@ const TestimonialFormModal = ({
       const payload: TestimonialFormPayload = {
         name: values.name.trim(),
         role: values.role.trim(),
-        category: values.category as TestimonialFormPayload['category'],
+        category: values.category.trim(),
         quote: values.quote.trim(),
         photoDataUrl: values.photoFile
           ? values.photoPreview ?? ''
@@ -359,14 +401,15 @@ const TestimonialFormModal = ({
                 <div className="space-y-1.5">
                   <label className={labelClass}>Category *</label>
                   <div className="flex flex-wrap gap-2">
-                    {PROJECT_CATEGORY_OPTIONS.map((option) => {
-                      const isActive = values.category === option.value
+                    {categoryOptions.map((option) => {
+                      const isActive =
+                        values.category.toLowerCase() === option.toLowerCase()
                       return (
                         <button
-                          key={option.value}
+                          key={option}
                           type="button"
                           onClick={() =>
-                            setValues((prev) => ({ ...prev, category: option.value }))
+                            setValues((prev) => ({ ...prev, category: option }))
                           }
                           className={[
                             'rounded-full border px-3.5 py-1.5 text-xs font-semibold transition',
@@ -375,11 +418,48 @@ const TestimonialFormModal = ({
                               : 'border-border/60 bg-surface text-text-secondary hover:border-accent/60 hover:text-accent',
                           ].join(' ')}
                         >
-                          {option.label}
+                          {option}
                         </button>
                       )
                     })}
                   </div>
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <input
+                      type="text"
+                      value={newCategory}
+                      onChange={(e) => setNewCategory(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          handleAddCategory()
+                        }
+                      }}
+                      placeholder="Add a category…"
+                      maxLength={MAX_CATEGORY_LENGTH}
+                      className="h-9 w-48 rounded-xl border border-border/60 bg-background px-3 text-xs text-text-primary outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddCategory}
+                      disabled={!newCategory.trim()}
+                      className="inline-flex h-9 items-center gap-1 rounded-xl border border-border/60 bg-surface px-3 text-xs font-semibold text-text-secondary transition hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={1.8}
+                        className="h-3.5 w-3.5"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m7-7H5" />
+                      </svg>
+                      Add
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-text-muted">
+                    Pick a category or add your own — categories aren’t restricted.
+                  </p>
                   {errors.category ? <p className={errorClass}>{errors.category}</p> : null}
                 </div>
 
