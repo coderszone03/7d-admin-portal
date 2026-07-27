@@ -1,15 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { BlogPost } from '../../components/blog/types'
-import BlogPostFormModal from '../../components/blog/BlogPostFormModal'
+import type { CaseStudy } from '../../components/caseStudies/types'
+import CaseStudyFormModal from '../../components/caseStudies/CaseStudyFormModal'
 import Modal from '../../components/common/Modal'
 import {
-  createBlogPost,
-  deleteBlogPost,
-  fetchBlogCategories,
-  fetchBlogPosts,
-  updateBlogPost,
-  type BlogCategory,
-} from '../../lib/api/blog'
+  createCaseStudy,
+  deleteCaseStudy,
+  fetchCaseStudies,
+  updateCaseStudy,
+} from '../../lib/api/caseStudies'
 
 const secondaryButtonClasses =
   'inline-flex h-10 items-center justify-center rounded-lg border border-border/60 px-4 text-sm font-semibold text-text-secondary transition hover:border-accent hover:text-accent focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-60'
@@ -17,14 +15,12 @@ const secondaryButtonClasses =
 const dangerButtonClasses =
   'inline-flex h-10 items-center justify-center rounded-lg bg-error px-4 text-sm font-semibold text-white transition hover:bg-error/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-error/50 disabled:cursor-not-allowed disabled:opacity-60'
 
-const BlogPostsPage = () => {
-  const [posts, setPosts] = useState<BlogPost[]>([])
-  const [activePostId, setActivePostId] = useState<string | null>(null)
+const CaseStudiesPage = () => {
+  const [caseStudies, setCaseStudies] = useState<CaseStudy[]>([])
+  const [activeId, setActiveId] = useState<string | null>(null)
   const [isFormOpen, setFormOpen] = useState(false)
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
-  const [postBeingEdited, setPostBeingEdited] = useState<BlogPost | null>(null)
-  const [categories, setCategories] = useState<BlogCategory[]>([])
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all')
+  const [itemBeingEdited, setItemBeingEdited] = useState<CaseStudy | null>(null)
   const [page, setPage] = useState(1)
   const [pageSize] = useState(10)
   const [totalCount, setTotalCount] = useState(0)
@@ -33,7 +29,7 @@ const BlogPostsPage = () => {
   const [error, setError] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
 
-  const [deleteTarget, setDeleteTarget] = useState<BlogPost | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<CaseStudy | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
@@ -73,48 +69,26 @@ const BlogPostsPage = () => {
     }
   }, [openMenuId])
 
-  useEffect(() => {
-    let isMounted = true
-
-    const loadCategories = async () => {
-      try {
-        const data = await fetchBlogCategories()
-        if (!isMounted) return
-        setCategories(data)
-      } catch {
-        if (!isMounted) return
-        setCategories([])
-      }
-    }
-
-    loadCategories()
-
-    return () => {
-      isMounted = false
-    }
-  }, [])
-
-  const loadPosts = async () => {
+  const loadCaseStudies = async () => {
     setIsLoading(true)
     setError(null)
     try {
-      const { items, total } = await fetchBlogPosts({
+      const { items, total } = await fetchCaseStudies({
         page: 1,
         pageSize,
-        categoryId: selectedCategoryId === 'all' ? null : selectedCategoryId,
         search: searchTerm || undefined,
       })
-      setPosts(items)
+      setCaseStudies(items)
       setTotalCount(total)
       setPage(1)
-      setActivePostId((previous) => {
+      setActiveId((previous) => {
         if (previous && items.some((item) => item.id === previous)) {
           return previous
         }
         return items[0]?.id ?? null
       })
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Unable to load blog posts.')
+      setError(loadError instanceof Error ? loadError.message : 'Unable to load case studies.')
     } finally {
       setIsLoading(false)
     }
@@ -128,16 +102,15 @@ const BlogPostsPage = () => {
     ;(async () => {
       setError(null)
       try {
-        const { items, total } = await fetchBlogPosts({
+        const { items, total } = await fetchCaseStudies({
           page,
           pageSize,
-          categoryId: selectedCategoryId === 'all' ? null : selectedCategoryId,
           search: searchTerm || undefined,
         })
         if (!isMounted) return
-        setPosts((prev) => (isFirstPage ? items : [...prev, ...items]))
+        setCaseStudies((prev) => (isFirstPage ? items : [...prev, ...items]))
         setTotalCount(total)
-        setActivePostId((previous) => {
+        setActiveId((previous) => {
           if (previous && items.some((item) => item.id === previous)) {
             return previous
           }
@@ -145,7 +118,7 @@ const BlogPostsPage = () => {
         })
       } catch (loadError) {
         if (!isMounted) return
-        setError(loadError instanceof Error ? loadError.message : 'Unable to load blog posts.')
+        setError(loadError instanceof Error ? loadError.message : 'Unable to load case studies.')
       } finally {
         if (isMounted) {
           setIsLoading(false)
@@ -156,31 +129,33 @@ const BlogPostsPage = () => {
     return () => {
       isMounted = false
     }
-  }, [page, pageSize, selectedCategoryId, searchTerm])
+  }, [page, pageSize, searchTerm])
 
-  const visiblePosts = useMemo(
+  const visibleItems = useMemo(
     () =>
-      popularFilter === 'popular' ? posts.filter((p) => p.isPopular) : posts,
-    [posts, popularFilter],
+      popularFilter === 'popular'
+        ? caseStudies.filter((c) => c.isPopular)
+        : caseStudies,
+    [caseStudies, popularFilter],
   )
 
-  const activePost = useMemo(
+  const activeItem = useMemo(
     () =>
-      visiblePosts.find((post) => post.id === activePostId) ??
-      visiblePosts[0] ??
+      visibleItems.find((item) => item.id === activeId) ??
+      visibleItems[0] ??
       null,
-    [activePostId, visiblePosts],
+    [activeId, visibleItems],
   )
 
   const handleOpenCreate = () => {
     setFormMode('create')
-    setPostBeingEdited(null)
+    setItemBeingEdited(null)
     setFormOpen(true)
   }
 
-  const handleOpenEdit = (post: BlogPost) => {
+  const handleOpenEdit = (item: CaseStudy) => {
     setFormMode('edit')
-    setPostBeingEdited(post)
+    setItemBeingEdited(item)
     setFormOpen(true)
   }
 
@@ -198,40 +173,38 @@ const BlogPostsPage = () => {
     )
   }
 
-  const handleSubmitPost = async (post: BlogPost) => {
+  const handleSubmit = async (item: CaseStudy) => {
     setError(null)
     setStatusMessage(null)
-    if (formMode === 'edit' && postBeingEdited) {
-      await updateBlogPost(postBeingEdited.id, post)
-      setStatusMessage(`Updated "${post.title}" successfully.`)
+    if (formMode === 'edit' && itemBeingEdited) {
+      await updateCaseStudy(itemBeingEdited.id, item)
+      setStatusMessage(`Updated "${item.title}" successfully.`)
     } else {
-      await createBlogPost(post)
-      setStatusMessage(`Added "${post.title}" successfully.`)
+      await createCaseStudy(item)
+      setStatusMessage(`Added "${item.title}" successfully.`)
       setPage(1)
     }
-    await loadPosts()
+    await loadCaseStudies()
   }
 
-  const handleTogglePopular = async (post: BlogPost) => {
-    const next = !post.isPopular
-    // Optimistic update so the pill flips immediately.
-    setPosts((prev) =>
-      prev.map((p) => (p.id === post.id ? { ...p, isPopular: next } : p)),
+  const handleTogglePopular = async (item: CaseStudy) => {
+    const next = !item.isPopular
+    setCaseStudies((prev) =>
+      prev.map((c) => (c.id === item.id ? { ...c, isPopular: next } : c)),
     )
-    setTogglingPopularId(post.id)
+    setTogglingPopularId(item.id)
     setError(null)
     setStatusMessage(null)
     try {
-      await updateBlogPost(post.id, { ...post, isPopular: next })
+      await updateCaseStudy(item.id, { ...item, isPopular: next })
       setStatusMessage(
         next
-          ? `Marked "${post.title}" as featured.`
-          : `Removed "${post.title}" from featured.`,
+          ? `Marked "${item.title}" as featured.`
+          : `Removed "${item.title}" from featured.`,
       )
     } catch (err) {
-      // Roll back on failure.
-      setPosts((prev) =>
-        prev.map((p) => (p.id === post.id ? { ...p, isPopular: post.isPopular } : p)),
+      setCaseStudies((prev) =>
+        prev.map((c) => (c.id === item.id ? { ...c, isPopular: item.isPopular } : c)),
       )
       setError(extractApiError(err, 'Could not update popular status. Please try again.'))
     } finally {
@@ -239,9 +212,9 @@ const BlogPostsPage = () => {
     }
   }
 
-  const handleRequestDelete = (post: BlogPost) => {
+  const handleRequestDelete = (item: CaseStudy) => {
     setDeleteError(null)
-    setDeleteTarget(post)
+    setDeleteTarget(item)
   }
 
   const handleCancelDelete = () => {
@@ -255,27 +228,22 @@ const BlogPostsPage = () => {
     setIsDeleting(true)
     setDeleteError(null)
     try {
-      await deleteBlogPost(deleteTarget.id)
+      await deleteCaseStudy(deleteTarget.id)
       setStatusMessage(`Removed "${deleteTarget.title}".`)
       setDeleteTarget(null)
-      await loadPosts()
+      await loadCaseStudies()
     } catch (err) {
-      setDeleteError(extractApiError(err, 'Could not delete the post. Please try again.'))
+      setDeleteError(extractApiError(err, 'Could not delete the case study. Please try again.'))
     } finally {
       setIsDeleting(false)
     }
   }
 
-  const contentsHeadings = (activePost?.sections ?? []).filter(
+  const contentsHeadings = (activeItem?.sections ?? []).filter(
     (block) => block.type === 'heading' && block.heading && block.heading.trim(),
   )
 
-  const handleSelectCategory = (categoryId: string) => {
-    setSelectedCategoryId(categoryId)
-    setPage(1)
-  }
-
-  const hasMore = posts.length < totalCount
+  const hasMore = caseStudies.length < totalCount
 
   const handleLoadMore = () => {
     if (isLoadingMore || isLoading || !hasMore) return
@@ -302,7 +270,7 @@ const BlogPostsPage = () => {
   }
 
   const placeholderThumb = (title: string) => {
-    const initial = (title || 'B').trim().charAt(0).toUpperCase()
+    const initial = (title || 'C').trim().charAt(0).toUpperCase()
     return initial
   }
 
@@ -311,9 +279,9 @@ const BlogPostsPage = () => {
       <header className="flex flex-col gap-4 rounded-3xl border border-border/60 bg-surface p-6 shadow-sm sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-2">
           <p className="text-xs uppercase tracking-[0.25em] text-text-muted">Blog</p>
-          <h1 className="text-2xl font-semibold text-text-secondary">Posts</h1>
+          <h1 className="text-2xl font-semibold text-text-secondary">Case Studies</h1>
           <p className="max-w-2xl text-sm text-text-muted">
-            Create case-study style articles with cover images, structured headings, and rich content blocks.
+            Publish long-form case studies with cover images, thumbnail cards, structured headings, and rich content blocks.
           </p>
         </div>
         <button
@@ -333,7 +301,7 @@ const BlogPostsPage = () => {
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m7-7H5" />
             </svg>
           </span>
-          Add post
+          Add case study
         </button>
       </header>
 
@@ -372,7 +340,7 @@ const BlogPostsPage = () => {
               type="text"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search posts by title…"
+              placeholder="Search case studies by title…"
               className="h-10 w-full rounded-xl border border-border/60 bg-background pl-9 pr-9 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent focus:ring-1 focus:ring-accent"
             />
             {searchInput ? (
@@ -399,7 +367,7 @@ const BlogPostsPage = () => {
           {/* Popular filter toggle */}
           <div
             role="tablist"
-            aria-label="Filter posts"
+            aria-label="Filter case studies"
             className="inline-flex items-center gap-1 rounded-2xl border border-border/60 bg-surface p-1"
           >
             <button
@@ -438,45 +406,10 @@ const BlogPostsPage = () => {
             </button>
           </div>
 
-          {/* Category chips + total count */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-muted">
-                Categories
-              </span>
-              <span className="text-[11px] text-text-muted">
-                {totalCount} {totalCount === 1 ? 'post' : 'posts'}
-              </span>
-            </div>
-            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <button
-                type="button"
-                onClick={() => handleSelectCategory('all')}
-                className={[
-                  'shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition',
-                  selectedCategoryId === 'all'
-                    ? 'border-accent/70 bg-accent/10 text-accent'
-                    : 'border-border/60 bg-surface text-text-secondary hover:border-accent/60 hover:text-accent',
-                ].join(' ')}
-              >
-                All
-              </button>
-              {categories.map((category) => (
-                <button
-                  key={category.id}
-                  type="button"
-                  onClick={() => handleSelectCategory(category.id)}
-                  className={[
-                    'shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition',
-                    selectedCategoryId === category.id
-                      ? 'border-accent/70 bg-accent/10 text-accent'
-                      : 'border-border/60 bg-surface text-text-secondary hover:border-accent/60 hover:text-accent',
-                  ].join(' ')}
-                >
-                  {category.name}
-                </button>
-              ))}
-            </div>
+          <div className="flex items-center justify-end">
+            <span className="text-[11px] text-text-muted">
+              {totalCount} {totalCount === 1 ? 'case study' : 'case studies'}
+            </span>
           </div>
 
           {error ? (
@@ -507,7 +440,7 @@ const BlogPostsPage = () => {
                 </li>
               ))}
             </ul>
-          ) : visiblePosts.length === 0 ? (
+          ) : visibleItems.length === 0 ? (
             <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border/60 bg-surface px-4 py-10 text-center">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-muted text-text-muted">
                 <svg
@@ -524,37 +457,37 @@ const BlogPostsPage = () => {
               <div className="space-y-1">
                 <p className="text-sm font-medium text-text-secondary">
                   {popularFilter === 'popular'
-                    ? 'No featured posts yet'
-                    : searchTerm || selectedCategoryId !== 'all'
-                      ? 'No posts match these filters'
-                      : 'No posts yet'}
+                    ? 'No featured case studies yet'
+                    : searchTerm
+                      ? 'No case studies match your search'
+                      : 'No case studies yet'}
                 </p>
                 <p className="text-xs text-text-muted">
                   {popularFilter === 'popular'
-                    ? 'Mark a post as featured from its menu to highlight it here.'
-                    : searchTerm || selectedCategoryId !== 'all'
-                      ? 'Try a different search or category.'
-                      : 'Create your first post to get started.'}
+                    ? 'Mark a case study as featured from its menu to highlight it here.'
+                    : searchTerm
+                      ? 'Try a different search term.'
+                      : 'Create your first case study to get started.'}
                 </p>
               </div>
-              {popularFilter !== 'popular' && !searchTerm && selectedCategoryId === 'all' ? (
+              {popularFilter !== 'popular' && !searchTerm ? (
                 <button
                   type="button"
                   onClick={handleOpenCreate}
                   className="inline-flex items-center gap-2 rounded-xl bg-accent px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-accent/90"
                 >
-                  Add post
+                  Add case study
                 </button>
               ) : null}
             </div>
           ) : (
             <ul className="space-y-2">
-              {visiblePosts.map((post) => {
-                const isActive = activePost?.id === post.id
+              {visibleItems.map((item) => {
+                const isActive = activeItem?.id === item.id
                 return (
                   <li
-                    key={post.id}
-                    onClick={() => setActivePostId(post.id)}
+                    key={item.id}
+                    onClick={() => setActiveId(item.id)}
                     className={[
                       'group relative flex cursor-pointer items-start gap-3 rounded-2xl border px-3 py-3 transition',
                       isActive
@@ -567,9 +500,9 @@ const BlogPostsPage = () => {
                     ) : null}
 
                     <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-border/60 bg-surface-muted">
-                      {post.coverImageUrl ? (
+                      {item.coverImageUrl ? (
                         <img
-                          src={post.coverImageUrl}
+                          src={item.coverImageUrl}
                           alt=""
                           className="h-full w-full object-cover"
                           onError={(e) => {
@@ -580,7 +513,7 @@ const BlogPostsPage = () => {
                         />
                       ) : (
                         <span className="flex h-full w-full items-center justify-center text-base font-semibold text-text-muted">
-                          {placeholderThumb(post.title)}
+                          {placeholderThumb(item.title)}
                         </span>
                       )}
                     </div>
@@ -588,11 +521,11 @@ const BlogPostsPage = () => {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <p className="min-w-0 flex-1 truncate text-sm font-medium text-text-secondary">
-                          {post.title}
+                          {item.title}
                         </p>
-                        {post.isPopular ? (
+                        {item.isPopular ? (
                           <span
-                            aria-label="Featured post"
+                            aria-label="Featured case study"
                             className="shrink-0 inline-flex items-center gap-0.5 rounded-full bg-accent/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-accent"
                           >
                             <svg
@@ -609,21 +542,21 @@ const BlogPostsPage = () => {
                         <span
                           className={[
                             'shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em]',
-                            post.status === 1
+                            item.status === 1
                               ? 'bg-success/15 text-success'
                               : 'bg-surface-muted text-text-muted',
                           ].join(' ')}
                         >
-                          {post.status === 1 ? 'Live' : 'Draft'}
+                          {item.status === 1 ? 'Live' : 'Draft'}
                         </span>
                       </div>
                       <p className="mt-0.5 truncate text-[11px] text-text-muted">
-                        {post.authorName || 'Unknown'} · {post.readTimeMinutes} min · Updated{' '}
-                        {formatShortDate(post.updatedAt)}
+                        {item.authorName || 'Unknown'} · {item.readTimeMinutes} min · Updated{' '}
+                        {formatShortDate(item.updatedAt)}
                       </p>
-                      {post.tags.length ? (
+                      {item.tags.length ? (
                         <p className="mt-1 truncate text-[10px] text-text-muted/80">
-                          {post.tags.map((tag) => `#${tag}`).join(' ')}
+                          {item.tags.map((tag) => `#${tag}`).join(' ')}
                         </p>
                       ) : null}
                     </div>
@@ -631,16 +564,16 @@ const BlogPostsPage = () => {
                     {/* Kebab menu */}
                     <div
                       className="shrink-0"
-                      ref={openMenuId === post.id ? menuRef : undefined}
+                      ref={openMenuId === item.id ? menuRef : undefined}
                       onClick={(event) => event.stopPropagation()}
                     >
                       <button
                         type="button"
-                        onClick={() => setOpenMenuId((curr) => (curr === post.id ? null : post.id))}
-                        data-open={openMenuId === post.id}
-                        aria-label={`Actions for ${post.title}`}
+                        onClick={() => setOpenMenuId((curr) => (curr === item.id ? null : item.id))}
+                        data-open={openMenuId === item.id}
+                        aria-label={`Actions for ${item.title}`}
                         aria-haspopup="menu"
-                        aria-expanded={openMenuId === post.id}
+                        aria-expanded={openMenuId === item.id}
                         className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-text-muted transition hover:bg-surface-muted hover:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent/40 data-[open=true]:bg-surface-muted data-[open=true]:text-accent"
                       >
                         <svg
@@ -654,7 +587,7 @@ const BlogPostsPage = () => {
                           <circle cx="12" cy="19" r="1.6" />
                         </svg>
                       </button>
-                      {openMenuId === post.id ? (
+                      {openMenuId === item.id ? (
                         <div
                           role="menu"
                           className="absolute right-2 top-10 z-20 min-w-[140px] overflow-hidden rounded-xl border border-border/60 bg-surface shadow-lg"
@@ -664,7 +597,7 @@ const BlogPostsPage = () => {
                             role="menuitem"
                             onClick={() => {
                               setOpenMenuId(null)
-                              handleOpenEdit(post)
+                              handleOpenEdit(item)
                             }}
                             className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-text-secondary transition hover:bg-surface-muted/60 hover:text-accent"
                           >
@@ -687,17 +620,17 @@ const BlogPostsPage = () => {
                           <button
                             type="button"
                             role="menuitem"
-                            disabled={togglingPopularId === post.id}
+                            disabled={togglingPopularId === item.id}
                             onClick={() => {
                               setOpenMenuId(null)
-                              handleTogglePopular(post)
+                              handleTogglePopular(item)
                             }}
                             className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-text-secondary transition hover:bg-surface-muted/60 hover:text-accent disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
                               viewBox="0 0 24 24"
-                              fill={post.isPopular ? 'currentColor' : 'none'}
+                              fill={item.isPopular ? 'currentColor' : 'none'}
                               stroke="currentColor"
                               strokeWidth={1.5}
                               strokeLinejoin="round"
@@ -705,9 +638,9 @@ const BlogPostsPage = () => {
                             >
                               <path d="M12 2l2.4 6.6H21l-5.3 3.85L17.8 19 12 15.1 6.2 19l2.1-6.55L3 8.6h6.6z" />
                             </svg>
-                            {togglingPopularId === post.id
+                            {togglingPopularId === item.id
                               ? 'Updating…'
-                              : post.isPopular
+                              : item.isPopular
                                 ? 'Unmark featured'
                                 : 'Mark as featured'}
                           </button>
@@ -716,7 +649,7 @@ const BlogPostsPage = () => {
                             role="menuitem"
                             onClick={() => {
                               setOpenMenuId(null)
-                              handleRequestDelete(post)
+                              handleRequestDelete(item)
                             }}
                             className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-error transition hover:bg-error/10"
                           >
@@ -762,11 +695,11 @@ const BlogPostsPage = () => {
           </div>
 
           {/* Footer count — pinned below scroll region */}
-          {posts.length > 0 ? (
+          {caseStudies.length > 0 ? (
             <div className="flex items-center justify-between border-t border-border/40 pt-3 text-[11px] text-text-muted">
               <span>
                 Showing{' '}
-                <span className="font-semibold text-text-secondary">{visiblePosts.length}</span> of{' '}
+                <span className="font-semibold text-text-secondary">{visibleItems.length}</span> of{' '}
                 <span className="font-semibold text-text-secondary">{totalCount}</span>
               </span>
               {isLoadingMore ? <span>Loading…</span> : null}
@@ -783,15 +716,15 @@ const BlogPostsPage = () => {
                   7D
                 </div>
                 <span className="text-xs font-medium text-text-secondary">
-                  {activePost?.authorName || 'Team 7D Design'}
+                  {activeItem?.authorName || 'Team 7D Design'}
                 </span>
-                {activePost?.authorRole ? (
-                  <span className="text-[11px] text-text-muted">· {activePost.authorRole}</span>
+                {activeItem?.authorRole ? (
+                  <span className="text-[11px] text-text-muted">· {activeItem.authorRole}</span>
                 ) : null}
               </div>
               <div className="inline-flex items-center gap-1 rounded-full bg-surface-muted/60 px-3 py-1.5 text-[11px] text-text-muted">
                 <span className="inline-block h-1 w-6 rounded-full bg-gradient-to-r from-orange-400 to-purple-500" />
-                {activePost?.readTimeMinutes || 2} min read
+                {activeItem?.readTimeMinutes || 2} min read
               </div>
               {contentsHeadings.length ? (
                 <details className="group relative">
@@ -822,17 +755,17 @@ const BlogPostsPage = () => {
                 className="flex-1 space-y-4 overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               >
                 <h1 className="text-3xl font-semibold leading-tight text-text-secondary">
-                  {activePost?.title || 'Your blog title will appear here'}
+                  {activeItem?.title || 'Your case study title will appear here'}
                 </h1>
                 <p className="max-w-3xl text-sm text-text-muted">
-                  {activePost?.excerpt ||
-                    'Use the “Add post” button to create a long-form, case-study style article.'}
+                  {activeItem?.excerpt ||
+                    'Use the “Add case study” button to create a long-form case study.'}
                 </p>
 
-                {activePost?.coverImageUrl ? (
+                {activeItem?.coverImageUrl ? (
                   <div className="mt-4 overflow-hidden rounded-3xl border border-border/60 bg-surface-muted/80">
                     <img
-                      src={activePost.coverImageUrl}
+                      src={activeItem.coverImageUrl}
                       alt=""
                       className="h-60 w-full object-cover"
                     />
@@ -840,7 +773,7 @@ const BlogPostsPage = () => {
                 ) : null}
 
                 <div className="mt-6">
-                  {(activePost?.sections ?? []).map((block) => {
+                  {(activeItem?.sections ?? []).map((block) => {
                     if (block.type === 'heading') {
                       if (!block.heading) return null
                       return (
@@ -900,18 +833,17 @@ const BlogPostsPage = () => {
         </div>
       </div>
 
-      <BlogPostFormModal
+      <CaseStudyFormModal
         isOpen={isFormOpen}
         mode={formMode}
-        initialPost={postBeingEdited}
-        categories={categories}
+        initialCaseStudy={itemBeingEdited}
         onClose={handleCloseForm}
-        onSubmit={handleSubmitPost}
+        onSubmit={handleSubmit}
       />
 
       <Modal isOpen={Boolean(deleteTarget)} onClose={handleCancelDelete} className="max-w-md">
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-text-secondary">Delete post</h2>
+          <h2 className="text-lg font-semibold text-text-secondary">Delete case study</h2>
           <p className="text-sm text-text-muted">
             Are you sure you want to remove{' '}
             <span className="font-semibold text-text-secondary">{deleteTarget?.title}</span>? This
@@ -937,7 +869,7 @@ const BlogPostsPage = () => {
               className={dangerButtonClasses}
               disabled={isDeleting}
             >
-              {isDeleting ? 'Deleting…' : 'Delete post'}
+              {isDeleting ? 'Deleting…' : 'Delete case study'}
             </button>
           </div>
         </div>
@@ -946,4 +878,4 @@ const BlogPostsPage = () => {
   )
 }
 
-export default BlogPostsPage
+export default CaseStudiesPage

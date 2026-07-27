@@ -9,6 +9,7 @@ import TestimonialsPage from '../pages/TestimonialsPage'
 import ServicesPage from '../pages/ServicesPage'
 import BlogCategoriesPage from '../pages/blog/BlogCategoriesPage'
 import BlogPostsPage from '../pages/blog/BlogPostsPage'
+import CaseStudiesPage from '../pages/blog/CaseStudiesPage'
 import CaseStudyHighlightPage from '../pages/blog/CaseStudyHighlightPage'
 import EnquiryPage from '../pages/EnquiryPage'
 import CareersPage from '../pages/CareersPage'
@@ -30,6 +31,7 @@ const AppRoutes = () => {
         <Route path="services" element={<ServicesPage />} />
         <Route path="blog/categories" element={<BlogCategoriesPage />} />
         <Route path="blog/posts" element={<BlogPostsPage />} />
+        <Route path="blog/case-studies" element={<CaseStudiesPage />} />
         <Route path="blog/case-study" element={<CaseStudyHighlightPage />} />
         <Route path="enquiry" element={<EnquiryPage />} />
         <Route path="careers" element={<CareersPage />} />

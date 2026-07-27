@@ -1,34 +1,34 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import Modal from '../common/Modal'
-import type { BlogContentBlock, BlogContentBlockType, BlogPost } from './types'
-import { BLOG_COVER_IMAGE_SPEC } from './types'
+import type { BlogContentBlock, BlogContentBlockType } from '../blog/types'
+import type { CaseStudy } from './types'
+import { CASE_STUDY_COVER_IMAGE_SPEC } from './types'
 import {
   validateImageDimensions,
   validatePreviewDimensions,
 } from '../portfolio/projects/types'
 import RichTextEditor from '../common/RichTextEditor'
-import type { BlogCategory } from '../../lib/api/blog'
 
-type BlogPostFormModalProps = {
+type CaseStudyFormModalProps = {
   isOpen: boolean
   mode: 'create' | 'edit'
-  initialPost: BlogPost | null
-  categories: BlogCategory[]
+  initialCaseStudy: CaseStudy | null
   onClose: () => void
-  onSubmit: (post: BlogPost) => Promise<void> | void
+  onSubmit: (caseStudy: CaseStudy) => Promise<void> | void
 }
 
-type BlogFormValues = {
+type CaseStudyFormValues = {
   title: string
   slug: string
   excerpt: string
-  categoryId: string
   status: 0 | 1
   isPopular: boolean
   authorName: string
   authorRole: string
-  readTimeMinutes: number
   tags: string
+  thumbnailTopic: string
+  thumbnailDescription: string
+  thumbnailContent: string
   coverPreview: string | null
   blocks: BlogContentBlock[]
 }
@@ -37,7 +37,6 @@ type FieldErrorKey =
   | 'title'
   | 'slug'
   | 'excerpt'
-  | 'categoryId'
   | 'authorName'
   | 'authorRole'
   | 'coverPreview'
@@ -47,6 +46,8 @@ const LIMIT_SLUG = 250
 const LIMIT_EXCERPT = 300
 const LIMIT_AUTHOR_NAME = 48
 const LIMIT_AUTHOR_ROLE = 48
+const LIMIT_THUMBNAIL_TOPIC = 200
+const LIMIT_THUMBNAIL_DESCRIPTION = 500
 
 const counterToneClass = (used: number, max: number): string => {
   const ratio = used / max
@@ -58,51 +59,53 @@ const counterToneClass = (used: number, max: number): string => {
 const createBlock = (type: BlogContentBlockType): BlogContentBlock => {
   const id = `${type}-${Date.now()}-${Math.random().toString(16).slice(2)}`
   if (type === 'heading') {
-    return { id, type, heading: '' };
+    return { id, type, heading: '' }
   }
   if (type === 'image') {
-    return { id, type, imageUrl: '', alt: '' };
+    return { id, type, imageUrl: '', alt: '' }
   }
-  return { id, type, text: '' }; // 'text' will now store HTML for paragraph/list
+  return { id, type, text: '' }
 }
 
-const buildInitialValues = (post: BlogPost | null): BlogFormValues => {
-  if (!post) {
+const buildInitialValues = (caseStudy: CaseStudy | null): CaseStudyFormValues => {
+  if (!caseStudy) {
     return {
       title: '',
       slug: '',
       excerpt: '',
-      categoryId: '',
       status: 1,
       isPopular: false,
       authorName: '',
       authorRole: '',
-      readTimeMinutes: 2,
       tags: '',
+      thumbnailTopic: '',
+      thumbnailDescription: '',
+      thumbnailContent: '',
       coverPreview: null,
       blocks: [
-        { ...createBlock('heading'), heading: 'Introduction' },
+        { ...createBlock('heading'), heading: 'Overview' },
         createBlock('paragraph'),
       ],
     }
   }
 
   return {
-    title: post.title,
-    slug: post.slug,
-    excerpt: post.excerpt,
-    categoryId: post.categoryId,
-    status: post.status,
-    isPopular: post.isPopular,
-    authorName: post.authorName,
-    authorRole: post.authorRole,
-    readTimeMinutes: post.readTimeMinutes,
-    tags: post.tags.join(', '),
-    coverPreview: post.coverImageUrl,
-    blocks: post.sections.length
-      ? post.sections.map((block) => ({ ...block, id: `${block.id}` }))
+    title: caseStudy.title,
+    slug: caseStudy.slug,
+    excerpt: caseStudy.excerpt,
+    status: caseStudy.status,
+    isPopular: caseStudy.isPopular,
+    authorName: caseStudy.authorName,
+    authorRole: caseStudy.authorRole,
+    tags: caseStudy.tags.join(', '),
+    thumbnailTopic: caseStudy.thumbnailTopic,
+    thumbnailDescription: caseStudy.thumbnailDescription,
+    thumbnailContent: caseStudy.thumbnailContent.join('\n'),
+    coverPreview: caseStudy.coverImageUrl,
+    blocks: caseStudy.sections.length
+      ? caseStudy.sections.map((block) => ({ ...block, id: `${block.id}` }))
       : [
-          { ...createBlock('heading'), heading: 'Introduction' },
+          { ...createBlock('heading'), heading: 'Overview' },
           createBlock('paragraph'),
         ],
   }
@@ -111,30 +114,31 @@ const buildInitialValues = (post: BlogPost | null): BlogFormValues => {
 const steps = [
   {
     id: 'details',
-    label: 'Post details',
-    description: 'Title, slug, teaser copy, and author.',
+    label: 'Case study details',
+    description: 'Title, slug, teaser copy, thumbnail, and author.',
   },
   {
     id: 'content',
     label: 'Content blocks',
-    description: 'Headings, paragraphs, lists, and inline images.',
+    description: 'Headings, paragraphs, and inline images.',
   },
   {
     id: 'preview',
     label: 'Preview & submit',
-    description: 'Review the full article layout before publishing.',
+    description: 'Review the full layout before publishing.',
   },
 ]
 
-const BlogPostFormModal = ({
+const CaseStudyFormModal = ({
   isOpen,
   mode,
-  initialPost,
-  categories,
+  initialCaseStudy,
   onClose,
   onSubmit,
-}: BlogPostFormModalProps) => {
-  const [values, setValues] = useState<BlogFormValues>(() => buildInitialValues(initialPost))
+}: CaseStudyFormModalProps) => {
+  const [values, setValues] = useState<CaseStudyFormValues>(() =>
+    buildInitialValues(initialCaseStudy),
+  )
   const [errors, setErrors] = useState<Partial<Record<FieldErrorKey, string>>>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [isSubmitting, setSubmitting] = useState(false)
@@ -144,13 +148,16 @@ const BlogPostFormModal = ({
     if (!isOpen) {
       return
     }
-    setValues(buildInitialValues(initialPost))
+    setValues(buildInitialValues(initialCaseStudy))
     setErrors({})
     setFormError(null)
     setActiveStepIndex(0)
-  }, [initialPost, isOpen])
+  }, [initialCaseStudy, isOpen])
 
-  const handleFieldChange = <K extends keyof BlogFormValues>(field: K, value: BlogFormValues[K]) => {
+  const handleFieldChange = <K extends keyof CaseStudyFormValues>(
+    field: K,
+    value: CaseStudyFormValues[K],
+  ) => {
     setValues((previous) => ({
       ...previous,
       [field]: value,
@@ -163,20 +170,13 @@ const BlogPostFormModal = ({
     }
   }
 
-  const handleTitleChange = (title: string) => {
-    // Only update the post title. Slug should be edited independently so typing
-    // the title does not automatically overwrite or populate the slug field.
-    handleFieldChange('title', title)
-  }
-
   const handleCoverChange = async (file: File | null) => {
     if (!file) {
       handleFieldChange('coverPreview', null)
       return
     }
 
-    // Cover image must match the 502×303 landscape orientation used by the public hero.
-    const dimensionCheck = await validateImageDimensions(file, BLOG_COVER_IMAGE_SPEC)
+    const dimensionCheck = await validateImageDimensions(file, CASE_STUDY_COVER_IMAGE_SPEC)
     if (!dimensionCheck.ok) {
       setErrors((previous) => ({ ...previous, coverPreview: dimensionCheck.error }))
       return
@@ -251,13 +251,10 @@ const BlogPostFormModal = ({
     const trimmedRole = values.authorRole.trim()
 
     if (!trimmedTitle) {
-      nextErrors.title = 'Post title is required.'
+      nextErrors.title = 'Case study title is required.'
     }
     if (!trimmedSlug) {
       nextErrors.slug = 'Slug is required.'
-    }
-    if (!values.categoryId) {
-      nextErrors.categoryId = 'Select a category.'
     }
     if (!trimmedExcerpt) {
       nextErrors.excerpt = 'Short description is required.'
@@ -285,18 +282,16 @@ const BlogPostFormModal = ({
       texts.push(values.excerpt)
     }
 
-    // Helper to strip HTML tags for word count calculation
     const stripHtml = (html: string) => {
-      const doc = new DOMParser().parseFromString(html, 'text/html');
-      return doc.body.textContent || '';
-    };
+      const doc = new DOMParser().parseFromString(html, 'text/html')
+      return doc.body.textContent || ''
+    }
 
     values.blocks.forEach((block) => {
       if (block.type === 'heading' && block.heading) {
         texts.push(block.heading)
       } else if ((block.type === 'paragraph' || block.type === 'list') && block.text) {
-        // Strip HTML before counting words for rich text blocks
-        texts.push(stripHtml(block.text));
+        texts.push(stripHtml(block.text))
       }
     })
 
@@ -316,11 +311,10 @@ const BlogPostFormModal = ({
   const cleanedBlocks = useMemo(
     () =>
       values.blocks.filter((block) => {
-        // Helper to strip HTML tags for content check
         const stripHtml = (html: string) => {
-          const doc = new DOMParser().parseFromString(html, 'text/html');
-          return doc.body.textContent || '';
-        };
+          const doc = new DOMParser().parseFromString(html, 'text/html')
+          return doc.body.textContent || ''
+        }
 
         if (block.type === 'heading') {
           return Boolean(block.heading && block.heading.trim())
@@ -328,8 +322,7 @@ const BlogPostFormModal = ({
         if (block.type === 'image') {
           return Boolean(block.imageUrl && block.imageUrl.trim())
         }
-        // For rich text blocks, check if stripped HTML content is not empty
-        return Boolean(block.text && stripHtml(block.text).trim());
+        return Boolean(block.text && stripHtml(block.text).trim())
       }),
     [values.blocks],
   )
@@ -353,12 +346,10 @@ const BlogPostFormModal = ({
 
     if (activeStepIndex === 0) {
       const nextErrors = validateDetailsStep()
-      // Re-check the cover's 502×303 orientation, covering edit mode where an existing
-      // cover is pre-loaded as a preview without passing through handleCoverChange.
       if (!nextErrors.coverPreview && values.coverPreview) {
         const dimensionCheck = await validatePreviewDimensions(
           values.coverPreview,
-          BLOG_COVER_IMAGE_SPEC,
+          CASE_STUDY_COVER_IMAGE_SPEC,
         )
         if (!dimensionCheck.ok) {
           nextErrors.coverPreview = dimensionCheck.error
@@ -388,22 +379,28 @@ const BlogPostFormModal = ({
       .split(',')
       .map((tag) => tag.trim())
       .filter(Boolean)
+    const rawThumbnailContent = values.thumbnailContent
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
 
-    const base: BlogPost = {
-      id: initialPost?.id ?? `blog-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      categoryId: values.categoryId,
+    const base: CaseStudy = {
+      id: initialCaseStudy?.id ?? `case-study-${Date.now()}-${Math.random().toString(16).slice(2)}`,
       status: values.status,
       isPopular: values.isPopular,
       title: values.title.trim(),
       slug: values.slug.trim(),
       excerpt: values.excerpt.trim(),
       coverImageUrl: values.coverPreview ?? '',
+      thumbnailTopic: values.thumbnailTopic.trim(),
+      thumbnailDescription: values.thumbnailDescription.trim(),
+      thumbnailContent: rawThumbnailContent,
       authorName: values.authorName.trim(),
       authorRole: values.authorRole.trim(),
       readTimeMinutes: estimatedReadTime,
       tags: rawTags,
       sections: cleanedBlocks,
-      createdAt: initialPost?.createdAt ?? now,
+      createdAt: initialCaseStudy?.createdAt ?? now,
       updatedAt: now,
     }
 
@@ -412,7 +409,7 @@ const BlogPostFormModal = ({
       await onSubmit(base)
       onClose()
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Unable to save blog post.')
+      setFormError(error instanceof Error ? error.message : 'Unable to save case study.')
     } finally {
       setSubmitting(false)
     }
@@ -420,7 +417,7 @@ const BlogPostFormModal = ({
 
   const renderPreviewSection = (block: BlogContentBlock) => {
     if (block.type === 'heading') {
-      if (!block.heading) return null;
+      if (!block.heading) return null
       return (
         <h2
           key={block.id}
@@ -432,18 +429,18 @@ const BlogPostFormModal = ({
     }
 
     if (block.type === 'paragraph') {
-      if (!block.text) return null;
+      if (!block.text) return null
       return (
         <div
           key={block.id}
-          className="mt-4 max-w-3xl text-sm leading-relaxed text-text-secondary/80 [&_p]:my-2 [&_a]:text-accent [&_a]:underline [&_strong]:font-semibold [&_em]:italic"
+          className="mt-4 max-w-3xl text-sm leading-relaxed text-text-secondary/80 [&_p]:my-2 [&_a]:text-accent [&_a]:underline [&_strong]:font-semibold [&_em]:italic [&_h1]:mt-6 [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:text-text-secondary [&_h2]:mt-5 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-text-secondary [&_h3]:mt-4 [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:text-text-secondary [&_h4]:mt-4 [&_h4]:text-lg [&_h4]:font-semibold [&_h5]:mt-3 [&_h5]:text-base [&_h5]:font-semibold [&_h6]:mt-3 [&_h6]:text-sm [&_h6]:font-semibold [&_h6]:uppercase [&_h6]:tracking-wide [&_ul]:my-2 [&_ul]:ml-5 [&_ul]:list-disc [&_ol]:my-2 [&_ol]:ml-5 [&_ol]:list-decimal [&_li]:my-1 [&_blockquote]:border-l-4 [&_blockquote]:border-accent/50 [&_blockquote]:pl-4 [&_blockquote]:italic"
           dangerouslySetInnerHTML={{ __html: block.text }}
         />
       )
     }
 
     if (block.type === 'list') {
-      if (!block.text) return null;
+      if (!block.text) return null
       return (
         <div
           key={block.id}
@@ -480,11 +477,11 @@ const BlogPostFormModal = ({
         <aside className="hidden w-full max-w-[320px] flex-col border-b border-slate-200/60 bg-gradient-to-b from-white via-[#f7f8fb] to-[#eef2ff] px-8 py-10 text-slate-900 lg:flex lg:border-b-0 lg:border-r dark:border-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-500 dark:text-slate-400">
-              {mode === 'create' ? 'New Post' : 'Edit Post'}
+              {mode === 'create' ? 'New Case Study' : 'Edit Case Study'}
             </p>
-            <h2 className="mt-3 text-3xl font-semibold">Blog Builder</h2>
+            <h2 className="mt-3 text-3xl font-semibold">Case Study Builder</h2>
             <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-              Structure long-form, case-study style articles with headings, lists, and inline imagery.
+              Structure long-form case studies with headings, lists, and inline imagery.
             </p>
           </div>
           <ol className="mt-10 space-y-7">
@@ -532,10 +529,10 @@ const BlogPostFormModal = ({
           <header className="flex items-center justify-between gap-3 border-b border-slate-200 bg-surface px-5 py-4 sm:px-8 dark:border-slate-800 dark:bg-slate-950/80">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.25em] text-text-muted">
-                Blog
+                Case Study
               </p>
               <h1 className="text-base font-semibold text-text-primary">
-                {mode === 'create' ? 'Create blog post' : 'Edit blog post'}
+                {mode === 'create' ? 'Create case study' : 'Edit case study'}
               </h1>
             </div>
             <button
@@ -553,17 +550,17 @@ const BlogPostFormModal = ({
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-medium text-text-muted">Post title</label>
+                      <label className="text-xs font-medium text-text-muted">Case study title</label>
                       <span className={`text-[10px] font-medium ${counterToneClass(values.title.length, LIMIT_TITLE)}`}>
                         {values.title.length}/{LIMIT_TITLE}
                       </span>
                     </div>
                     <input
                       value={values.title}
-                      onChange={(event) => handleTitleChange(event.target.value)}
+                      onChange={(event) => handleFieldChange('title', event.target.value)}
                       maxLength={LIMIT_TITLE}
                       className="w-full rounded-2xl border border-border/60 bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                      placeholder="Leverage the power of AI in your SEO"
+                      placeholder="Rebranding a legacy fintech product"
                     />
                     {errors.title ? (
                       <p className="mt-1 text-xs text-error">{errors.title}</p>
@@ -581,7 +578,7 @@ const BlogPostFormModal = ({
                       onChange={(event) => handleFieldChange('slug', event.target.value)}
                       maxLength={LIMIT_SLUG}
                       className="w-full rounded-2xl border border-border/60 bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                      placeholder="leverage-the-power-of-ai-in-your-seo"
+                      placeholder="rebranding-a-legacy-fintech-product"
                     />
                     {errors.slug ? (
                       <p className="mt-1 text-xs text-error">{errors.slug}</p>
@@ -589,51 +586,31 @@ const BlogPostFormModal = ({
                   </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-text-muted">Category</label>
-                    <select
-                      value={values.categoryId}
-                      onChange={(event) => handleFieldChange('categoryId', event.target.value)}
-                      className="w-full rounded-2xl border border-border/60 bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+                <div className="flex flex-col items-start gap-1.5">
+                  <label className="text-xs font-medium text-text-muted">Status</label>
+                  <div className="inline-flex h-9 items-center gap-1 rounded-2xl border border-border/60 bg-background p-1">
+                    <button
+                      type="button"
+                      onClick={() => handleFieldChange('status', 1)}
+                      className={`h-7 rounded-xl px-3 text-xs font-medium transition ${
+                        values.status === 1
+                          ? 'bg-accent text-white'
+                          : 'text-text-muted hover:text-text-secondary'
+                      }`}
                     >
-                      <option value="">Select a category…</option>
-                      {categories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
-                    {errors.categoryId ? (
-                      <p className="mt-1 text-xs text-error">{errors.categoryId}</p>
-                    ) : null}
-                  </div>
-                  <div className="space-y-1.5 flex flex-col items-start justify-center mt-1">
-                    <label className="text-xs font-medium text-text-muted">Status</label>
-                    <div className="inline-flex h-9 items-center gap-1 rounded-2xl border border-border/60 bg-background p-1">
-                      <button
-                        type="button"
-                        onClick={() => handleFieldChange('status', 1)}
-                        className={`h-7 rounded-xl px-3 text-xs font-medium transition ${
-                          values.status === 1
-                            ? 'bg-accent text-white'
-                            : 'text-text-muted hover:text-text-secondary'
-                        }`}
-                      >
-                        Published
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleFieldChange('status', 0)}
-                        className={`h-7 rounded-xl px-3 text-xs font-medium transition ${
-                          values.status === 0
-                            ? 'bg-accent text-white'
-                            : 'text-text-muted hover:text-text-secondary'
-                        }`}
-                      >
-                        Draft
-                      </button>
-                    </div>
+                      Published
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleFieldChange('status', 0)}
+                      className={`h-7 rounded-xl px-3 text-xs font-medium transition ${
+                        values.status === 0
+                          ? 'bg-accent text-white'
+                          : 'text-text-muted hover:text-text-secondary'
+                      }`}
+                    >
+                      Draft
+                    </button>
                   </div>
                 </div>
 
@@ -643,7 +620,7 @@ const BlogPostFormModal = ({
                       Mark as featured
                     </span>
                     <span className="text-[11px] text-text-muted">
-                      Highlights this post on the public site and with a pill in the admin list.
+                      Highlights this case study on the public site and with a pill in the admin list.
                     </span>
                   </span>
                   <button
@@ -693,9 +670,7 @@ const BlogPostFormModal = ({
                     </div>
                     <input
                       value={values.authorName}
-                      onChange={(event) =>
-                        handleFieldChange('authorName', event.target.value)
-                      }
+                      onChange={(event) => handleFieldChange('authorName', event.target.value)}
                       maxLength={LIMIT_AUTHOR_NAME}
                       className="w-full rounded-2xl border border-border/60 bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                       placeholder="Hurman Ali Khan"
@@ -713,12 +688,10 @@ const BlogPostFormModal = ({
                     </div>
                     <input
                       value={values.authorRole}
-                      onChange={(event) =>
-                        handleFieldChange('authorRole', event.target.value)
-                      }
+                      onChange={(event) => handleFieldChange('authorRole', event.target.value)}
                       maxLength={LIMIT_AUTHOR_ROLE}
                       className="w-full rounded-2xl border border-border/60 bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                      placeholder="Digital Marketing Expert"
+                      placeholder="Brand Strategist"
                     />
                     {errors.authorRole ? (
                       <p className="mt-1 text-xs text-error">{errors.authorRole}</p>
@@ -732,11 +705,9 @@ const BlogPostFormModal = ({
                     value={values.tags}
                     onChange={(event) => handleFieldChange('tags', event.target.value)}
                     className="w-full rounded-2xl border border-border/60 bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                    placeholder="ai, seo, branding"
+                    placeholder="branding, fintech, redesign"
                   />
-                  <p className="text-[11px] text-text-muted">
-                    Separate tags with commas.
-                  </p>
+                  <p className="text-[11px] text-text-muted">Separate tags with commas.</p>
                 </div>
 
                 <div className="space-y-1.5">
@@ -749,9 +720,7 @@ const BlogPostFormModal = ({
                         type="file"
                         accept="image/*"
                         className="hidden"
-                        onChange={(event) =>
-                          handleCoverChange(event.target.files?.[0] ?? null)
-                        }
+                        onChange={(event) => handleCoverChange(event.target.files?.[0] ?? null)}
                       />
                       Upload image
                     </label>
@@ -766,11 +735,59 @@ const BlogPostFormModal = ({
                     ) : null}
                   </div>
                   <p className="text-[11px] text-text-muted">
-                    Use a 502×303 landscape image (1.66:1) to match the blog hero.
+                    Use a 502×303 landscape image (1.66:1) to match the case study hero.
                   </p>
                   {errors.coverPreview ? (
                     <p className="mt-1 text-xs text-error">{errors.coverPreview}</p>
                   ) : null}
+                </div>
+
+                <div className="space-y-4 rounded-2xl border border-border/60 bg-background/40 p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-muted">
+                    Thumbnail card (optional)
+                  </p>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-medium text-text-muted">Thumbnail topic</label>
+                      <span className={`text-[10px] font-medium ${counterToneClass(values.thumbnailTopic.length, LIMIT_THUMBNAIL_TOPIC)}`}>
+                        {values.thumbnailTopic.length}/{LIMIT_THUMBNAIL_TOPIC}
+                      </span>
+                    </div>
+                    <input
+                      value={values.thumbnailTopic}
+                      onChange={(event) => handleFieldChange('thumbnailTopic', event.target.value)}
+                      maxLength={LIMIT_THUMBNAIL_TOPIC}
+                      className="w-full rounded-2xl border border-border/60 bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+                      placeholder="Short headline shown on the card"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-medium text-text-muted">Thumbnail description</label>
+                      <span className={`text-[10px] font-medium ${counterToneClass(values.thumbnailDescription.length, LIMIT_THUMBNAIL_DESCRIPTION)}`}>
+                        {values.thumbnailDescription.length}/{LIMIT_THUMBNAIL_DESCRIPTION}
+                      </span>
+                    </div>
+                    <textarea
+                      value={values.thumbnailDescription}
+                      onChange={(event) => handleFieldChange('thumbnailDescription', event.target.value)}
+                      rows={2}
+                      maxLength={LIMIT_THUMBNAIL_DESCRIPTION}
+                      className="w-full rounded-2xl border border-border/60 bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+                      placeholder="Supporting copy for the card"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-text-muted">Thumbnail content</label>
+                    <textarea
+                      value={values.thumbnailContent}
+                      onChange={(event) => handleFieldChange('thumbnailContent', event.target.value)}
+                      rows={3}
+                      className="w-full rounded-2xl border border-border/60 bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+                      placeholder={'One item per line:\nBrand identity\nUI/UX design\nMotion graphics'}
+                    />
+                    <p className="text-[11px] text-text-muted">One item per line.</p>
+                  </div>
                 </div>
               </div>
             ) : null}
@@ -877,14 +894,14 @@ const BlogPostFormModal = ({
                             handleBlockChange(block.id, { heading: event.target.value })
                           }
                           className="w-full rounded-2xl border border-border/60 bg-background px-3 py-1.5 text-sm text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                          placeholder="INTRODUCTION"
+                          placeholder="OVERVIEW"
                         />
                       ) : null}
 
                       {block.type === 'paragraph' ? (
-                        <RichTextEditor // Replace textarea with RichTextEditor
+                        <RichTextEditor
                           value={block.text ?? ''}
-                          onChange={(htmlContent: string) => // Editor outputs HTML
+                          onChange={(htmlContent: string) =>
                             handleBlockChange(block.id, { text: htmlContent })
                           }
                           placeholder="Write your paragraph here..."
@@ -907,9 +924,9 @@ const BlogPostFormModal = ({
                               Toggle style
                             </button>
                           </div>
-                          <RichTextEditor // Replace textarea with RichTextEditor
+                          <RichTextEditor
                             value={block.text ?? ''}
-                            onChange={(htmlContent:string) => // Editor outputs HTML
+                            onChange={(htmlContent: string) =>
                               handleBlockChange(block.id, { text: htmlContent })
                             }
                             placeholder={'Each line becomes a list item:\nA refreshed brand identity\nUI/UX improvements\nCross-platform digital campaigns'}
@@ -973,52 +990,51 @@ const BlogPostFormModal = ({
                 <div className="rounded-3xl border border-border/60 bg-surface p-6 text-text-secondary">
                   <div className="flex flex-col gap-6 lg:flex-row">
                     <aside className="w-full max-w-xs space-y-4 lg:w-64 ">
-                      <div className='sticky top-0 space-y-4'>
-
-                      <div className="flex items-center gap-3 rounded-2xl bg-surface-muted/60 p-3 ">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-500">
-                          <span className="text-sm font-semibold text-white">7D</span>
+                      <div className="sticky top-0 space-y-4">
+                        <div className="flex items-center gap-3 rounded-2xl bg-surface-muted/60 p-3 ">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-500">
+                            <span className="text-sm font-semibold text-white">7D</span>
+                          </div>
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-muted">
+                              Written by
+                            </p>
+                            <p className="text-sm font-medium text-text-secondary">
+                              {values.authorName || 'Team 7D Design'}
+                            </p>
+                            <p className="text-[11px] text-text-muted">
+                              {values.authorRole || 'Content Team'}
+                            </p>
+                          </div>
                         </div>
-                        <div>
+
+                        <div className="space-y-2 rounded-2xl bg-surface-muted/60 p-3">
                           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-muted">
-                            Written by
+                            Contents
                           </p>
-                          <p className="text-sm font-medium text-text-secondary">
-                            {values.authorName || 'Team 7D Design'}
-                          </p>
-                          <p className="text-[11px] text-text-muted">
-                            {values.authorRole || 'Content Team'}
-                          </p>
+                          <ul className="space-y-1 text-sm text-text-secondary/80">
+                            {headingsForContents.map((block) => (
+                              <li key={block.id}>{block.heading}</li>
+                            ))}
+                          </ul>
                         </div>
-                      </div>
 
-                      <div className="space-y-2 rounded-2xl bg-surface-muted/60 p-3">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-muted">
-                          Contents
-                        </p>
-                        <ul className="space-y-1 text-sm text-text-secondary/80">
-                          {headingsForContents.map((block) => (
-                            <li key={block.id}>{block.heading}</li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      <div className="space-y-2 rounded-2xl bg-surface-muted/60 p-3 text-[11px] text-text-muted">
-                        <p>
-                          <span className="inline-block h-1 w-10 rounded-full bg-gradient-to-r from-orange-400 to-purple-500" />
-                        </p>
-                        <p>{estimatedReadTime} mins read</p>
-                      </div>
+                        <div className="space-y-2 rounded-2xl bg-surface-muted/60 p-3 text-[11px] text-text-muted">
+                          <p>
+                            <span className="inline-block h-1 w-10 rounded-full bg-gradient-to-r from-orange-400 to-purple-500" />
+                          </p>
+                          <p>{estimatedReadTime} mins read</p>
+                        </div>
                       </div>
                     </aside>
 
                     <article className="flex-1 space-y-4">
                       <h1 className="text-3xl font-semibold leading-tight text-text-secondary">
-                        {values.title || 'Your blog title will appear here'}
+                        {values.title || 'Your case study title will appear here'}
                       </h1>
                       <p className="max-w-3xl text-sm text-text-muted">
                         {values.excerpt ||
-                          'Use the previous steps to structure your case-study style blog post.'}
+                          'Use the previous steps to structure your case study.'}
                       </p>
 
                       {values.coverPreview ? (
@@ -1082,7 +1098,7 @@ const BlogPostFormModal = ({
                   disabled={isSubmitting}
                   className="inline-flex items-center justify-center rounded-2xl bg-[#111322] px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_32px_-20px_rgba(15,17,33,0.45)] transition hover:bg-[#0c0e1b] disabled:cursor-not-allowed disabled:bg-[#111322]/60"
                 >
-                  {isSubmitting ? 'Publishing…' : 'Publish post'}
+                  {isSubmitting ? 'Publishing…' : 'Publish case study'}
                 </button>
               )}
             </div>
@@ -1093,4 +1109,4 @@ const BlogPostFormModal = ({
   )
 }
 
-export default BlogPostFormModal
+export default CaseStudyFormModal

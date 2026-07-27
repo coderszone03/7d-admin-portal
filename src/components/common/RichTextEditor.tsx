@@ -54,8 +54,29 @@ const Toolbar = ({ editor }: { editor: Editor | null }) => {
 
   const btn =
     'inline-flex h-8 min-w-8 items-center justify-center rounded-md px-1.5 text-[12px] font-medium text-text-secondary transition hover:bg-surface-muted hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent'
-  const activeCls = 'bg-accent/15 text-accent hover:bg-accent/20 hover:text-accent'
+  const activeCls =
+    'bg-accent text-white shadow-sm ring-1 ring-accent hover:bg-accent hover:text-white'
   const divider = <span aria-hidden className="mx-1 h-5 w-px bg-border/60" />
+
+  // Human-readable label for the block the cursor is currently in.
+  const activeBlockLabel = (() => {
+    for (const level of [1, 2, 3, 4, 5, 6] as const) {
+      if (editor.isActive('heading', { level })) return `Heading ${level}`
+    }
+    if (editor.isActive('blockquote')) return 'Quote'
+    if (editor.isActive('bulletList')) return 'Bulleted list'
+    if (editor.isActive('orderedList')) return 'Numbered list'
+    if (editor.isActive('codeBlock')) return 'Code block'
+    return 'Paragraph'
+  })()
+
+  const activeMarks = [
+    editor.isActive('bold') && 'Bold',
+    editor.isActive('italic') && 'Italic',
+    editor.isActive('strike') && 'Strike',
+    editor.isActive('code') && 'Code',
+    editor.isActive('link') && 'Link',
+  ].filter(Boolean) as string[]
 
   const Icon = ({
     path,
@@ -232,6 +253,30 @@ const Toolbar = ({ editor }: { editor: Editor | null }) => {
         </button>
       </div>
 
+      {/* Live status: shows the current block type and any active inline marks so
+          the user always knows whether they're in H1/H2/Quote etc. */}
+      <div className="flex items-center gap-2 border-b border-border/60 bg-surface/70 px-3 py-1 text-[11px] text-text-muted">
+        <span className="inline-flex items-center gap-1">
+          <span className="text-text-muted/70">Current:</span>
+          <span className="rounded bg-accent/15 px-1.5 py-0.5 font-semibold text-accent">
+            {activeBlockLabel}
+          </span>
+        </span>
+        {activeMarks.length ? (
+          <span className="inline-flex items-center gap-1">
+            <span className="text-text-muted/70">·</span>
+            {activeMarks.map((mark) => (
+              <span
+                key={mark}
+                className="rounded bg-surface-muted px-1.5 py-0.5 font-medium text-text-secondary"
+              >
+                {mark}
+              </span>
+            ))}
+          </span>
+        ) : null}
+      </div>
+
       <PromptModal
         isOpen={isLinkModalOpen}
         title="Add Link"
@@ -294,8 +339,10 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     },
     editorProps: {
       attributes: {
-        // Apply styling to the editor content area itself
-        class: 'prose prose-sm dark:prose-invert max-w-none focus:outline-none p-3 min-h-[100px]',
+        // Apply styling to the editor content area itself. Explicit heading sizes
+        // give a clear visual hierarchy (prose-sm otherwise flattens H1–H6).
+        class:
+          'prose prose-sm dark:prose-invert max-w-none focus:outline-none p-3 min-h-[100px] [&_h1]:text-3xl [&_h1]:font-bold [&_h2]:text-2xl [&_h2]:font-bold [&_h3]:text-xl [&_h3]:font-semibold [&_h4]:text-lg [&_h4]:font-semibold [&_h5]:text-base [&_h5]:font-semibold [&_h6]:text-sm [&_h6]:font-semibold [&_h6]:uppercase [&_h6]:tracking-wide [&_blockquote]:border-l-4 [&_blockquote]:border-accent/50 [&_blockquote]:pl-4 [&_blockquote]:italic',
       },
     },
   })

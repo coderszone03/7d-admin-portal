@@ -107,6 +107,7 @@ const navigation: NavigationItem[] = [
     children: [
       { label: 'Categories', to: '/blog/categories' },
       { label: 'Posts', to: '/blog/posts' },
+      { label: 'Case Studies', to: '/blog/case-studies' },
       { label: 'Case Study Highlight', to: '/blog/case-study' },
     ],
   },

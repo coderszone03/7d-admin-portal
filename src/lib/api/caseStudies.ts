@@ -4,8 +4,8 @@ import { AUTH_COOKIE_KEY } from '../../features/auth/constants'
 import type {
   BlogContentBlock,
   BlogContentBlockType,
-  BlogPost,
 } from '../../components/blog/types'
+import type { CaseStudy } from '../../components/caseStudies/types'
 
 const getAuthHeader = (): Record<string, string> => {
   const raw = getCookie(AUTH_COOKIE_KEY)
@@ -21,41 +21,21 @@ const getAuthHeader = (): Record<string, string> => {
   return {}
 }
 
-export type BlogCategory = {
-  id: string
-  name: string
-  slug?: string
-  status?: '0' | '1'
-  createdAt?: string
-  updatedAt?: string
-}
-
-export type BlogCategoryMutationPayload = {
-  name: string
-  status: '0' | '1'
-}
-
-export type FetchBlogPostsParams = {
+export type FetchCaseStudiesParams = {
   page: number
   pageSize: number
-  categoryId?: string | null
   search?: string
 }
 
-export type FetchBlogPostsResult = {
-  items: BlogPost[]
+export type FetchCaseStudiesResult = {
+  items: CaseStudy[]
   total: number
 }
 
-const BLOG_CATEGORIES_ENDPOINT = '/api/admin/blog_categories'
-const BLOG_CATEGORY_ITEM_ENDPOINT = '/api/admin/blog_category'
-const BLOG_CATEGORY_CREATE_ENDPOINT = '/api/admin/blog_category/create'
-const BLOG_CATEGORY_UPDATE_ENDPOINT = '/api/admin/blog_category/update'
-const BLOG_CATEGORY_SEARCH_ENDPOINT = '/api/admin/blog_category/search'
-const BLOGS_LIST_ENDPOINT = '/api/admin/blogs'
-const BLOG_ITEM_ENDPOINT = '/api/admin/blog'
-const BLOG_CREATE_ENDPOINT = '/api/admin/blog/create'
-const BLOG_UPDATE_ENDPOINT = '/api/admin/blog/update'
+const CASE_STUDIES_LIST_ENDPOINT = '/api/admin/case_studies'
+const CASE_STUDY_ITEM_ENDPOINT = '/api/admin/case_study'
+const CASE_STUDY_CREATE_ENDPOINT = '/api/admin/case_study/create'
+const CASE_STUDY_UPDATE_ENDPOINT = '/api/admin/case_study/update'
 
 const toStringOrEmpty = (v: unknown): string => (v === null || v === undefined ? '' : String(v))
 
@@ -64,10 +44,9 @@ const extractList = (body: unknown): unknown[] => {
   const b = body as any
   if (Array.isArray(b?.data)) return b.data
   if (Array.isArray(b?.items)) return b.items
-  if (Array.isArray(b?.posts)) return b.posts
-  if (Array.isArray(b?.blogs)) return b.blogs
+  if (Array.isArray(b?.case_studies)) return b.case_studies
   if (Array.isArray(b?.data?.items)) return b.data.items
-  if (Array.isArray(b?.data?.blogs)) return b.data.blogs
+  if (Array.isArray(b?.data?.case_studies)) return b.data.case_studies
   return []
 }
 
@@ -75,8 +54,7 @@ const extractSingle = (body: unknown): unknown => {
   if (!body || typeof body !== 'object') return body
   const b = body as any
   if (b.data && typeof b.data === 'object' && !Array.isArray(b.data)) return b.data
-  if (b.blog && typeof b.blog === 'object') return b.blog
-  if (b.post && typeof b.post === 'object') return b.post
+  if (b.case_study && typeof b.case_study === 'object') return b.case_study
   return b
 }
 
@@ -131,7 +109,6 @@ const apiTypeToUiType = (apiType: string): BlogContentBlockType => {
   if (apiType === 'heading') return 'heading'
   if (apiType === 'image') return 'image'
   // The API only knows `description`; we map it back to `paragraph` in the UI.
-  // Lists saved from the UI come back as paragraphs with embedded list HTML — still renders correctly.
   return 'paragraph'
 }
 
@@ -149,25 +126,16 @@ const normaliseBlock = (raw: unknown, fallbackIndex: number): BlogContentBlock |
   if (type === 'image') {
     return { id, type, imageUrl: content, alt: toStringOrEmpty(v.alt) }
   }
-  // paragraph
   return { id, type, text: content }
 }
 
-const normaliseBlogPost = (raw: unknown, fallbackId: string): BlogPost | null => {
+const normaliseCaseStudy = (raw: unknown, fallbackId: string): CaseStudy | null => {
   if (!raw || typeof raw !== 'object') return null
   const v = raw as Record<string, any>
 
-  const idSource = v.id ?? v.blog_id ?? v._id ?? fallbackId
+  const idSource = v.id ?? v.case_study_id ?? v._id ?? fallbackId
   const id = String(idSource)
 
-  const categoryIdRaw =
-    v.blog_category_id ??
-    v.categoryId ??
-    v.category_id ??
-    (v.blog_category && typeof v.blog_category === 'object'
-      ? (v.blog_category as any).id
-      : undefined)
-  const categoryId = toStringOrEmpty(categoryIdRaw)
   const title = toStringOrEmpty(v.title)
   const slug =
     toStringOrEmpty(v.slug) ||
@@ -188,6 +156,12 @@ const normaliseBlogPost = (raw: unknown, fallbackId: string): BlogPost | null =>
       v.cover_image,
   )
 
+  const thumbnailTopic = toStringOrEmpty(v.thumbnail_topic ?? v.thumbnailTopic)
+  const thumbnailDescription = toStringOrEmpty(
+    v.thumbnail_description ?? v.thumbnailDescription,
+  )
+  const thumbnailContent = coerceKeywords(v.thumbnail_content ?? v.thumbnailContent)
+
   const authorRaw = toStringOrEmpty(v.author ?? v.author_name ?? v.authorName)
   const { authorName, authorRole } = splitAuthor(authorRaw)
 
@@ -195,13 +169,12 @@ const normaliseBlogPost = (raw: unknown, fallbackId: string): BlogPost | null =>
   const status: 0 | 1 = statusRaw === 1 || statusRaw === '1' || statusRaw === true ? 1 : 0
 
   const popularRaw = v.is_popular ?? v.isPopular
-  const isPopular =
-    popularRaw === 1 || popularRaw === '1' || popularRaw === true
+  const isPopular = popularRaw === 1 || popularRaw === '1' || popularRaw === true
 
   const tags = coerceKeywords(v.keywords ?? v.tags)
 
-  const inputsRaw = Array.isArray(v.blog_inputs)
-    ? (v.blog_inputs as unknown[])
+  const inputsRaw = Array.isArray(v.case_study_inputs)
+    ? (v.case_study_inputs as unknown[])
     : Array.isArray(v.inputs)
       ? (v.inputs as unknown[])
       : Array.isArray(v.sections)
@@ -225,13 +198,15 @@ const normaliseBlogPost = (raw: unknown, fallbackId: string): BlogPost | null =>
 
   return {
     id,
-    categoryId,
     status,
     isPopular,
     title,
     slug,
     excerpt,
     coverImageUrl,
+    thumbnailTopic,
+    thumbnailDescription,
+    thumbnailContent,
     authorName,
     authorRole,
     readTimeMinutes,
@@ -263,19 +238,20 @@ const buildApiInputs = async (sections: BlogContentBlock[]): Promise<ApiInputBlo
       // Hosted URLs are sent as-is; only freshly uploaded data: URLs go as base64.
       result.push({ type: 'image', content: block.imageUrl ?? '', order })
     } else {
-      // paragraph and list both → description (HTML content is preserved either way)
       result.push({ type: 'description', content: block.text ?? '', order })
     }
   }
   return result
 }
 
-type BlogMutationPayload = {
-  blog_category_id: number
+type CaseStudyMutationPayload = {
   title: string
   slug: string
   short_description: string
   thumbnail_file?: string
+  thumbnail_topic: string
+  thumbnail_description: string
+  thumbnail_content: string[]
   inputs: ApiInputBlock[]
   keywords: string[]
   author: string
@@ -284,26 +260,27 @@ type BlogMutationPayload = {
 }
 
 const buildPayload = async (
-  post: BlogPost,
+  caseStudy: CaseStudy,
   includeThumbnailOnEmpty: boolean,
-): Promise<BlogMutationPayload> => {
-  const inputs = await buildApiInputs(post.sections)
-  const cover = post.coverImageUrl ?? ''
+): Promise<CaseStudyMutationPayload> => {
+  const inputs = await buildApiInputs(caseStudy.sections)
+  const cover = caseStudy.coverImageUrl ?? ''
   // Send the thumbnail only when it's a new upload (data: URL). A hosted URL means
   // the cover is unchanged, so we omit the field to keep the payload small.
   const thumbnail = cover.startsWith('data:') ? cover : ''
-  const categoryIdNum = Number.parseInt(post.categoryId, 10)
 
-  const payload: BlogMutationPayload = {
-    blog_category_id: Number.isFinite(categoryIdNum) ? categoryIdNum : 0,
-    title: post.title.trim(),
-    slug: post.slug.trim(),
-    short_description: post.excerpt.trim(),
+  const payload: CaseStudyMutationPayload = {
+    title: caseStudy.title.trim(),
+    slug: caseStudy.slug.trim(),
+    short_description: caseStudy.excerpt.trim(),
+    thumbnail_topic: caseStudy.thumbnailTopic.trim(),
+    thumbnail_description: caseStudy.thumbnailDescription.trim(),
+    thumbnail_content: caseStudy.thumbnailContent.map((c) => c.trim()).filter(Boolean),
     inputs,
-    keywords: post.tags.map((t) => t.trim()).filter(Boolean),
-    author: joinAuthor(post.authorName, post.authorRole),
-    status: post.status,
-    is_popular: post.isPopular ? 1 : 0,
+    keywords: caseStudy.tags.map((t) => t.trim()).filter(Boolean),
+    author: joinAuthor(caseStudy.authorName, caseStudy.authorRole),
+    status: caseStudy.status,
+    is_popular: caseStudy.isPopular ? 1 : 0,
   }
   if (thumbnail || includeThumbnailOnEmpty) {
     payload.thumbnail_file = thumbnail
@@ -311,105 +288,9 @@ const buildPayload = async (
   return payload
 }
 
-const normaliseCategory = (raw: unknown, index: number): BlogCategory | null => {
-  if (!raw || typeof raw !== 'object') return null
-  const value = raw as Record<string, unknown>
-  const idValue =
-    value.value ?? value.id ?? value.category_id ?? value.slug ?? String(index + 1)
-  const nameValue =
-    value.name ?? value.title ?? value.slug ?? `Category ${index + 1}`
-
-  const id = String(idValue)
-  const name = String(nameValue)
-  const slug =
-    typeof value.slug === 'string'
-      ? value.slug
-      : typeof value.key === 'string'
-        ? value.key
-        : undefined
-
-  const rawStatus = value.status
-  const status: '0' | '1' | undefined =
-    rawStatus === 1 || rawStatus === '1' || rawStatus === true
-      ? '1'
-      : rawStatus === 0 || rawStatus === '0' || rawStatus === false
-        ? '0'
-        : undefined
-
-  const createdAt =
-    typeof value.created_at === 'string'
-      ? value.created_at
-      : typeof value.createdAt === 'string'
-        ? value.createdAt
-        : undefined
-  const updatedAt =
-    typeof value.updated_at === 'string'
-      ? value.updated_at
-      : typeof value.updatedAt === 'string'
-        ? value.updatedAt
-        : undefined
-
-  return { id, name, slug, status, createdAt, updatedAt }
-}
-
-export const fetchBlogCategories = async (perPage = 50): Promise<BlogCategory[]> => {
-  const response = await client.get(BLOG_CATEGORIES_ENDPOINT, {
-    params: { per_page: perPage },
-    headers: { ...getAuthHeader() },
-  })
-  const list = extractList(response.data)
-  return list
-    .map((item, index) => normaliseCategory(item, index))
-    .filter((item): item is BlogCategory => Boolean(item))
-}
-
-export const fetchBlogCategoryById = async (id: string): Promise<BlogCategory | null> => {
-  const response = await client.get(
-    `${BLOG_CATEGORY_ITEM_ENDPOINT}/${encodeURIComponent(id)}`,
-    { headers: { ...getAuthHeader() } },
-  )
-  const raw = extractSingle(response.data)
-  return normaliseCategory(raw, 0)
-}
-
-export const searchBlogCategories = async (search: string): Promise<BlogCategory[]> => {
-  const response = await client.get(BLOG_CATEGORY_SEARCH_ENDPOINT, {
-    params: { search },
-    headers: { ...getAuthHeader() },
-  })
-  const list = extractList(response.data)
-  return list
-    .map((item, index) => normaliseCategory(item, index))
-    .filter((item): item is BlogCategory => Boolean(item))
-}
-
-export const createBlogCategory = async (
-  payload: BlogCategoryMutationPayload,
-): Promise<void> => {
-  await client.post(BLOG_CATEGORY_CREATE_ENDPOINT, payload, {
-    headers: { ...getAuthHeader() },
-  })
-}
-
-export const updateBlogCategory = async (
-  id: string,
-  payload: BlogCategoryMutationPayload,
-): Promise<void> => {
-  const body = { id: Number.parseInt(id, 10), ...payload }
-  await client.post(BLOG_CATEGORY_UPDATE_ENDPOINT, body, {
-    headers: { ...getAuthHeader() },
-  })
-}
-
-export const deleteBlogCategory = async (id: string): Promise<void> => {
-  await client.delete(`${BLOG_CATEGORY_ITEM_ENDPOINT}/${encodeURIComponent(id)}`, {
-    headers: { ...getAuthHeader() },
-  })
-}
-
-export const fetchBlogPosts = async (
-  params: FetchBlogPostsParams,
-): Promise<FetchBlogPostsResult> => {
+export const fetchCaseStudies = async (
+  params: FetchCaseStudiesParams,
+): Promise<FetchCaseStudiesResult> => {
   const query: Record<string, unknown> = {
     per_page: params.pageSize,
     page: params.page,
@@ -417,63 +298,53 @@ export const fetchBlogPosts = async (
   if (params.search && params.search.trim()) {
     query.search = params.search.trim()
   }
-  // Filter by category server-side so matches on later pages aren't missed.
-  const categoryIdNum =
-    params.categoryId && params.categoryId !== 'all'
-      ? Number.parseInt(params.categoryId, 10)
-      : NaN
-  if (Number.isFinite(categoryIdNum)) {
-    query.blog_category_id = categoryIdNum
-  }
 
-  const response = await client.get(BLOGS_LIST_ENDPOINT, {
+  const response = await client.get(CASE_STUDIES_LIST_ENDPOINT, {
     params: query,
     headers: { ...getAuthHeader() },
   })
   const body = response.data
   const list = extractList(body)
 
-  let items = list
-    .map((item, index) => normaliseBlogPost(item, `blog-${params.page}-${index + 1}`))
-    .filter((item): item is BlogPost => Boolean(item))
-
-  // Defensive client-side filter in case the backend ignores the category param.
-  if (Number.isFinite(categoryIdNum)) {
-    items = items.filter((post) => post.categoryId === String(categoryIdNum))
-  }
+  const items = list
+    .map((item, index) => normaliseCaseStudy(item, `case-study-${params.page}-${index + 1}`))
+    .filter((item): item is CaseStudy => Boolean(item))
 
   const total = extractTotal(body, items.length)
   return { items, total }
 }
 
-export const fetchBlogPostById = async (id: string): Promise<BlogPost | null> => {
-  const response = await client.get(`${BLOG_ITEM_ENDPOINT}/${encodeURIComponent(id)}`, {
+export const fetchCaseStudyById = async (id: string): Promise<CaseStudy | null> => {
+  const response = await client.get(`${CASE_STUDY_ITEM_ENDPOINT}/${encodeURIComponent(id)}`, {
     headers: { ...getAuthHeader() },
   })
   const raw = extractSingle(response.data)
-  return normaliseBlogPost(raw, id)
+  return normaliseCaseStudy(raw, id)
 }
 
-export const createBlogPost = async (post: BlogPost): Promise<BlogPost | null> => {
-  const body = await buildPayload(post, false)
-  const response = await client.post(BLOG_CREATE_ENDPOINT, body, {
+export const createCaseStudy = async (caseStudy: CaseStudy): Promise<CaseStudy | null> => {
+  const body = await buildPayload(caseStudy, false)
+  const response = await client.post(CASE_STUDY_CREATE_ENDPOINT, body, {
     headers: { ...getAuthHeader() },
   })
   const raw = extractSingle(response.data)
-  return normaliseBlogPost(raw, `blog-${Date.now()}`)
+  return normaliseCaseStudy(raw, `case-study-${Date.now()}`)
 }
 
-export const updateBlogPost = async (id: string, post: BlogPost): Promise<BlogPost | null> => {
-  const body = { id: Number.parseInt(id, 10), ...(await buildPayload(post, false)) }
-  const response = await client.post(BLOG_UPDATE_ENDPOINT, body, {
+export const updateCaseStudy = async (
+  id: string,
+  caseStudy: CaseStudy,
+): Promise<CaseStudy | null> => {
+  const body = { id: Number.parseInt(id, 10), ...(await buildPayload(caseStudy, false)) }
+  const response = await client.post(CASE_STUDY_UPDATE_ENDPOINT, body, {
     headers: { ...getAuthHeader() },
   })
   const raw = extractSingle(response.data)
-  return normaliseBlogPost(raw, id)
+  return normaliseCaseStudy(raw, id)
 }
 
-export const deleteBlogPost = async (id: string): Promise<void> => {
-  await client.delete(`${BLOG_ITEM_ENDPOINT}/${encodeURIComponent(id)}`, {
+export const deleteCaseStudy = async (id: string): Promise<void> => {
+  await client.delete(`${CASE_STUDY_ITEM_ENDPOINT}/${encodeURIComponent(id)}`, {
     headers: { ...getAuthHeader() },
   })
 }
