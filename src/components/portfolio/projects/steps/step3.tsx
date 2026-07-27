@@ -79,6 +79,12 @@ const Step3 = ({
 
           return (
             <div
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault()
+                const file = event.dataTransfer.files?.[0] ?? null
+                if (file) onAssetChange(field, file)
+              }}
               className={[
                 'relative flex flex-col items-center justify-center gap-4 rounded-3xl border-2 border-dashed border-border/55 bg-background/30 p-6 text-center transition',
                 hasPreview ? 'border-border/40 bg-background/40' : 'hover:border-accent/50',
@@ -168,6 +174,12 @@ const Step3 = ({
                 </div>
 
                 <div
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => {
+                    event.preventDefault()
+                    const file = event.dataTransfer.files?.[0] ?? null
+                    if (file) onAssetChange(field, file)
+                  }}
                   className={[
                     'relative flex flex-col items-center justify-center gap-4 rounded-3xl border-2 border-dashed border-border/55 bg-background/30 p-6 text-center transition',
                     hasPreview ? 'border-border/40 bg-background/40' : 'hover:border-accent/50',

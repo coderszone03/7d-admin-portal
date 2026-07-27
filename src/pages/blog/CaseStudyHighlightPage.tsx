@@ -108,6 +108,9 @@ const CaseStudyHighlightPage = () => {
       setImagePreview(result)
       setPendingImage(result)
     }
+    reader.onerror = () => {
+      setErrors((prev) => ({ ...prev, image: 'Failed to read the image. Please try another file.' }))
+    }
     reader.readAsDataURL(file)
   }
 

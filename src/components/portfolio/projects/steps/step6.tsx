@@ -102,10 +102,10 @@ const Step6 = ({ values }: PreviewStepProps) => {
               <div className="h-[0.5rem] w-[0.5rem] rounded-full bg-purple-500" />
               <p className="text-[0.8rem] font-semibold text-white">{yearLabel}</p>
             </div>
-            <h3 className="mb-2 text-[2rem] font-black uppercase leading-none text-white">
+            <h3 className="mb-2 break-words text-[2rem] font-black uppercase leading-none text-white">
               {title}
             </h3>
-            <p className="text-[0.95rem] leading-snug text-white">{description}</p>
+            <p className="break-words text-[0.95rem] leading-snug text-white">{description}</p>
 
             {/* Concave notch at the overlay's bottom-left edge */}
             <svg

@@ -15,14 +15,14 @@ interface RichTextEditorProps {
 
 // A simple toolbar component
 const Toolbar = ({ editor }: { editor: Editor | null }) => {
-  if (!editor) {
-    return null
-  }
-
   const [isLinkModalOpen, setLinkModalOpen] = useState(false);
   const [currentLinkUrl, setCurrentLinkUrl] = useState('');
   const [isImageInputModalOpen, setImageInputModalOpen] = useState(false);
   const [currentImageUrl, setCurrentImageUrl] = useState('');
+
+  if (!editor) {
+    return null
+  }
 
   const handleOpenLinkModal = () => {
     setCurrentLinkUrl(editor.getAttributes('link').href || '');

@@ -188,6 +188,12 @@ const BlogPostFormModal = ({
         handleFieldChange('coverPreview', event.target.result)
       }
     }
+    reader.onerror = () => {
+      setErrors((previous) => ({
+        ...previous,
+        coverPreview: 'Failed to read the image. Please try another file.',
+      }))
+    }
     reader.readAsDataURL(file)
   }
 

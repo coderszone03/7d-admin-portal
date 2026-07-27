@@ -179,16 +179,39 @@ export const IMAGE_SPECS: Record<ProjectImageSlot, ImageSpec> = {
 }
 
 const ASPECT_RATIO_TOLERANCE = 0.03
+// Upper bound so oversized uploads (e.g. 4500×4500) are rejected. Files may be up to
+// this multiple of the reference spec — generous enough for retina assets, but it stops
+// absurdly large images that bloat payloads and break layouts.
+const MAX_DIMENSION_SCALE = 4
 
 export type ImageValidationResult =
   | { ok: true; width: number; height: number }
   | { ok: false; error: string }
 
-const checkDimensions = (width: number, height: number, spec: ImageSpec): ImageValidationResult => {
+const checkDimensions = (
+  width: number,
+  height: number,
+  spec: ImageSpec,
+  // The max cap only applies to fresh uploads. Preview re-validation (edit mode)
+  // must not reject images that were already saved before the cap existed, or the
+  // user would be unable to save an untouched project.
+  enforceMax = true,
+): ImageValidationResult => {
   if (width < spec.width || height < spec.height) {
     return {
       ok: false,
       error: `${spec.label} must be at least ${spec.width}×${spec.height}px (uploaded ${width}×${height}px).`,
+    }
+  }
+
+  if (enforceMax) {
+    const maxWidth = spec.width * MAX_DIMENSION_SCALE
+    const maxHeight = spec.height * MAX_DIMENSION_SCALE
+    if (width > maxWidth || height > maxHeight) {
+      return {
+        ok: false,
+        error: `${spec.label} must be at most ${maxWidth}×${maxHeight}px (uploaded ${width}×${height}px). Please resize it down.`,
+      }
     }
   }
 
@@ -239,7 +262,7 @@ export const validatePreviewDimensions = (
     const img = new Image()
     img.crossOrigin = 'anonymous'
     img.onload = () => {
-      resolve(checkDimensions(img.naturalWidth, img.naturalHeight, spec))
+      resolve(checkDimensions(img.naturalWidth, img.naturalHeight, spec, false))
     }
     img.onerror = () => {
       // If the image can't even load, surface a clear error (e.g. CORS or 404).

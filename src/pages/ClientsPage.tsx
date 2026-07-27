@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type DragEvent,
   type FormEvent,
 } from 'react'
 import Modal from '../components/common/Modal'
@@ -197,10 +198,7 @@ const ClientsPage = () => {
     )
   }
 
-  const handleLogoChange = async (event: ChangeEvent<HTMLInputElement>) => {
-    const input = event.target
-    const file = input.files?.[0] ?? null
-
+  const processLogoFile = async (file: File | null) => {
     if (!file) {
       setLogoFile(null)
       if (formMode === 'create') setLogoPreview(null)
@@ -211,14 +209,12 @@ const ClientsPage = () => {
     if (!isTypeAllowed(file)) {
       setLogoFile(null)
       setErrors((prev) => ({ ...prev, logo: 'Logo must be a JPG or PNG image.' }))
-      input.value = ''
       return
     }
 
     if (file.size > MAX_FILE_SIZE) {
       setLogoFile(null)
       setErrors((prev) => ({ ...prev, logo: 'Logo must be 2MB or smaller.' }))
-      input.value = ''
       return
     }
 
@@ -226,7 +222,6 @@ const ClientsPage = () => {
     if (!dimensionCheck.ok) {
       setLogoFile(null)
       setErrors((prev) => ({ ...prev, logo: dimensionCheck.error }))
-      input.value = ''
       return
     }
 
@@ -237,7 +232,23 @@ const ClientsPage = () => {
     reader.onload = () => {
       setLogoPreview(reader.result as string)
     }
+    reader.onerror = () => {
+      setErrors((prev) => ({ ...prev, logo: 'Failed to read the image. Please try another file.' }))
+    }
     reader.readAsDataURL(file)
+  }
+
+  const handleLogoChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const input = event.target
+    await processLogoFile(input.files?.[0] ?? null)
+    input.value = ''
+  }
+
+  const handleLogoDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    if (isSubmitting) return
+    const file = event.dataTransfer.files?.[0] ?? null
+    if (file) void processLogoFile(file)
   }
 
   const validate = () => {
@@ -711,7 +722,11 @@ const ClientsPage = () => {
                 </span>
               ) : null}
             </p>
-            <div className="relative flex flex-col items-center gap-4 rounded-3xl border border-dashed border-border/60 bg-background/70 p-6 text-center transition hover:border-accent/50 focus-within:border-accent/60 focus-within:bg-background/80">
+            <div
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={handleLogoDrop}
+              className="relative flex flex-col items-center gap-4 rounded-3xl border border-dashed border-border/60 bg-background/70 p-6 text-center transition hover:border-accent/50 focus-within:border-accent/60 focus-within:bg-background/80"
+            >
               <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-inner">
                 {logoPreview ? (
                   <img

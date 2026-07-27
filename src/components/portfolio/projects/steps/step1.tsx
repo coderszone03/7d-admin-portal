@@ -1,4 +1,4 @@
-import { useMemo, useState, type ChangeEvent, type KeyboardEvent } from 'react'
+import { useMemo, useState, type ChangeEvent, type DragEvent, type KeyboardEvent } from 'react'
 
 import {
   MAX_DESCRIPTION_LENGTH,
@@ -67,9 +67,28 @@ const Step1 = ({
     })
   }, [keywordOptions, keywordSearch, values.keywords])
 
+  const [isDraggingThumbnail, setIsDraggingThumbnail] = useState(false)
+
   const handleThumbnailInput = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null
     onThumbnailChange(file)
+  }
+
+  const handleThumbnailDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    setIsDraggingThumbnail(false)
+    const file = event.dataTransfer.files?.[0] ?? null
+    if (file) onThumbnailChange(file)
+  }
+
+  const handleThumbnailDragOver = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    if (!isDraggingThumbnail) setIsDraggingThumbnail(true)
+  }
+
+  const handleThumbnailDragLeave = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    setIsDraggingThumbnail(false)
   }
 
   const handleKeywordInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -340,12 +359,18 @@ const Step1 = ({
             </p>
           </div>
           <div
+            onDrop={handleThumbnailDrop}
+            onDragOver={handleThumbnailDragOver}
+            onDragEnter={handleThumbnailDragOver}
+            onDragLeave={handleThumbnailDragLeave}
             className={[
               'relative flex flex-col items-center justify-center gap-4 rounded-3xl border-2 border-dashed bg-background/30 p-6 text-center transition dark:bg-slate-900/70',
               values.thumbnailPreview ? 'bg-background/40 dark:bg-slate-900' : '',
-              errors.thumbnail
-                ? 'border-danger/60 dark:border-danger/60'
-                : 'border-border/50 hover:border-accent/50 dark:border-slate-700',
+              isDraggingThumbnail
+                ? 'border-accent bg-accent/5 dark:border-accent'
+                : errors.thumbnail
+                  ? 'border-danger/60 dark:border-danger/60'
+                  : 'border-border/50 hover:border-accent/50 dark:border-slate-700',
             ].join(' ')}
           >
             {values.thumbnailPreview ? (

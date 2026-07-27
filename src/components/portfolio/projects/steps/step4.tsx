@@ -36,12 +36,11 @@ const Step4 = ({
   const websiteDescription = values.websiteDescription
   const isWebsiteEnabled = values.isWebsiteEnabled
 
-  const handleLocalMockupChange = useCallback(
+  const handleLocalMockupFile = useCallback(
     (
-      event: ChangeEvent<HTMLInputElement>,
+      file: File | null,
       onChange: (file: File | null, preview: string | null) => void,
     ) => {
-      const file = event.target.files?.[0]
       if (!file) {
         onChange(null, null)
         return
@@ -50,9 +49,22 @@ const Step4 = ({
       reader.onload = () => {
         onChange(file, typeof reader.result === 'string' ? reader.result : null)
       }
+      reader.onerror = () => {
+        onChange(null, null)
+      }
       reader.readAsDataURL(file)
     },
     [],
+  )
+
+  const handleLocalMockupChange = useCallback(
+    (
+      event: ChangeEvent<HTMLInputElement>,
+      onChange: (file: File | null, preview: string | null) => void,
+    ) => {
+      handleLocalMockupFile(event.target.files?.[0] ?? null, onChange)
+    },
+    [handleLocalMockupFile],
   )
 
   return (
@@ -69,6 +81,11 @@ const Step4 = ({
           Landscape mockup <span className="text-danger">*</span>
         </p>
         <div
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={(event) => {
+            event.preventDefault()
+            handleLocalMockupFile(event.dataTransfer.files?.[0] ?? null, onLandscapeMockupChange)
+          }}
           className={[
             'relative flex flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed bg-background/30 p-4 text-center transition',
             landscapeMockupPreview ? 'border-border/40 bg-background/40' : 'border-border/55 hover:border-accent/50',
@@ -142,6 +159,11 @@ const Step4 = ({
           Website mockup <span className="text-danger">*</span>
         </p>
         <div
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={(event) => {
+            event.preventDefault()
+            handleLocalMockupFile(event.dataTransfer.files?.[0] ?? null, onWebsiteMockupChange)
+          }}
           className={[
             'relative flex flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed bg-background/30 p-4 text-center transition',
             websiteMockupPreview ? 'border-border/40 bg-background/40' : 'border-border/55 hover:border-accent/50',
