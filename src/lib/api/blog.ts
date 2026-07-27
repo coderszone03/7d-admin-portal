@@ -455,7 +455,8 @@ export const fetchBlogPostById = async (id: string): Promise<BlogPost | null> =>
 }
 
 export const createBlogPost = async (post: BlogPost): Promise<BlogPost | null> => {
-  const body = await buildPayload(post, false)
+  // Spec marks thumbnail_file required on create, so always include it.
+  const body = await buildPayload(post, true)
   const response = await client.post(BLOG_CREATE_ENDPOINT, body, {
     headers: { ...getAuthHeader() },
   })
