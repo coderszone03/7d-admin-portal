@@ -7,9 +7,9 @@ import { logout, selectIsAuthenticated } from '../features/auth/authSlice'
 import { AUTH_COOKIE_KEY, AUTH_COOKIE_MAX_AGE_MINUTES } from '../features/auth/constants'
 import { getCookie } from '../lib/utils/cookies'
 
-// Idle timeout is short (2 minutes) and independent of cookie expiry.
-const IDLE_TIMEOUT_MS = 2 * 60 * 1000
-const IDLE_WARNING_DURATION_MS = 8000
+// Idle timeout is 15 minutes and independent of cookie expiry.
+const IDLE_TIMEOUT_MS = 15 * 60 * 1000
+const IDLE_WARNING_DURATION_MS = 30 * 1000
 
 const formatSessionTimeoutLabel = (minutes: number) => {
   if (minutes % (24 * 60) === 0) {
@@ -166,8 +166,8 @@ const DashboardLayout = () => {
             <div className="relative space-y-4 text-center">
               <h2 className="text-xl font-semibold text-text-primary">You are in idle mode</h2>
               <p className="text-sm text-text-muted">
-                You’ve been inactive for a while. You will be logged out automatically in 8 seconds
-                unless you choose to stay logged in.
+                You’ve been inactive for a while. You will be logged out automatically in{' '}
+                {Math.round(IDLE_WARNING_DURATION_MS / 1000)} seconds unless you choose to stay logged in.
               </p>
               <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-center">
                 <button

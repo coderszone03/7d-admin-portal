@@ -480,15 +480,15 @@ const ClientsPage = () => {
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="overflow-x-auto pt-2">
-              <div className="grid min-w-[660px] grid-cols-5 gap-4">
+            <div className="pt-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4">
                 {paginatedClients.map((item) => (
                   <article
                     key={item.id}
                     className="group relative flex h-full flex-col items-center gap-4 rounded-3xl border border-border/60 bg-surface px-4 py-5 text-center shadow-sm transition hover:border-[#6366f1]/70 hover:shadow-[0_18px_35px_-20px_rgba(99,102,241,0.65)]"
                   >
                     <div
-                      className="absolute right-1 top-3"
+                      className="absolute right-2 top-3"
                       ref={openMenuId === item.id ? menuRef : undefined}
                     >
                       <button
@@ -517,7 +517,7 @@ const ClientsPage = () => {
                       {openMenuId === item.id ? (
                         <div
                           role="menu"
-                          className="absolute left-full top-0 z-20 ml-2 min-w-[140px] overflow-hidden rounded-xl border border-border/60 bg-surface shadow-lg"
+                          className="absolute right-0 top-full mt-1 z-30 min-w-[140px] overflow-hidden rounded-xl border border-border/60 bg-surface shadow-xl"
                         >
                           <button
                             type="button"

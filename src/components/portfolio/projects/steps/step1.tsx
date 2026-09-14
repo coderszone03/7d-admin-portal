@@ -447,6 +447,9 @@ const Step1 = ({
               onChange={handleThumbnailInput}
             />
           </div>
+          {errors.thumbnail ? (
+            <p className="mt-2 text-xs text-danger">{errors.thumbnail}</p>
+          ) : null}
         </div>
       </div>
     </div>

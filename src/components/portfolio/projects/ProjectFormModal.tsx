@@ -741,16 +741,22 @@ const ProjectFormModal = ({
   )
 
   // Re-validates already-loaded previews (data URLs or remote URLs) before advancing
-  // a step or submitting. This catches off-spec images that were loaded in edit mode
-  // (which bypasses the file change handlers).
+  // a step or submitting. Catches off-spec images for newly selected files while
+  // preserving pre-existing database assets in edit mode.
   const validatePreviews = async (
-    pairs: Array<{ key: FieldErrorKey; preview: string | null; spec: typeof IMAGE_SPECS[keyof typeof IMAGE_SPECS] }>,
+    pairs: Array<{
+      key: FieldErrorKey
+      preview: string | null
+      spec: (typeof IMAGE_SPECS)[keyof typeof IMAGE_SPECS]
+      isFreshUpload?: boolean
+    }>,
   ): Promise<Partial<Record<FieldErrorKey, string>>> => {
     const result: Partial<Record<FieldErrorKey, string>> = {}
     await Promise.all(
-      pairs.map(async ({ key, preview, spec }) => {
+      pairs.map(async ({ key, preview, spec, isFreshUpload }) => {
         if (!preview) return
-        const check = await validatePreviewDimensions(preview, spec)
+        const enforceRatio = isFreshUpload ?? false
+        const check = await validatePreviewDimensions(preview, spec, enforceRatio)
         if (!check.ok) {
           result[key] = check.error
         }
@@ -772,7 +778,12 @@ const ProjectFormModal = ({
     if (activeStepIndex === 0) {
       const detailsErrors = validateDetailsStep()
       const dimErrors = await validatePreviews([
-        { key: 'thumbnail', preview: values.thumbnailPreview, spec: IMAGE_SPECS.thumbnail },
+        {
+          key: 'thumbnail',
+          preview: values.thumbnailPreview,
+          spec: IMAGE_SPECS.thumbnail,
+          isFreshUpload: Boolean(values.thumbnailFile),
+        },
       ])
       const merged = { ...detailsErrors, ...dimErrors }
 
@@ -815,9 +826,24 @@ const ProjectFormModal = ({
     if (activeStepIndex === 2) {
       const mediaErrors = validateMediaStep()
       const dimErrors = await validatePreviews([
-        { key: 'clientMockup', preview: values.clientMockupPreview, spec: IMAGE_SPECS.clientMockup },
-        { key: 'brandingMockup', preview: values.brandingMockupPreview, spec: IMAGE_SPECS.brandingMockup },
-        { key: 'brandingMockupSecondary', preview: values.brandingMockupSecondaryPreview, spec: IMAGE_SPECS.brandingMockupSecondary },
+        {
+          key: 'clientMockup',
+          preview: values.clientMockupPreview,
+          spec: IMAGE_SPECS.clientMockup,
+          isFreshUpload: Boolean(values.clientMockupFile),
+        },
+        {
+          key: 'brandingMockup',
+          preview: values.brandingMockupPreview,
+          spec: IMAGE_SPECS.brandingMockup,
+          isFreshUpload: Boolean(values.brandingMockupFile),
+        },
+        {
+          key: 'brandingMockupSecondary',
+          preview: values.brandingMockupSecondaryPreview,
+          spec: IMAGE_SPECS.brandingMockupSecondary,
+          isFreshUpload: Boolean(values.brandingMockupSecondaryFile),
+        },
       ])
       const merged = { ...mediaErrors, ...dimErrors }
 
@@ -842,8 +868,18 @@ const ProjectFormModal = ({
     if (activeStepIndex === 3) {
       const mockupErrors = validateMockupsStep()
       const dimErrors = await validatePreviews([
-        { key: 'landscapeMockup', preview: values.landscapeMockupPreview, spec: IMAGE_SPECS.landscapeMockup },
-        { key: 'websiteMockup', preview: values.websiteMockupPreview, spec: IMAGE_SPECS.websiteMockup },
+        {
+          key: 'landscapeMockup',
+          preview: values.landscapeMockupPreview,
+          spec: IMAGE_SPECS.landscapeMockup,
+          isFreshUpload: values.landscapeMockupPreview !== initialProject?.landscapeMockupUrl,
+        },
+        {
+          key: 'websiteMockup',
+          preview: values.websiteMockupPreview,
+          spec: IMAGE_SPECS.websiteMockup,
+          isFreshUpload: values.websiteMockupPreview !== initialProject?.websiteMockupUrl,
+        },
       ])
       const merged = { ...mockupErrors, ...dimErrors }
 
@@ -867,7 +903,12 @@ const ProjectFormModal = ({
     if (activeStepIndex === 4) {
       const testimonialErrors = validateTestimonialStep()
       const dimErrors = await validatePreviews([
-        { key: 'footerMockup', preview: values.footerMockupPreview, spec: IMAGE_SPECS.footerMockup },
+        {
+          key: 'footerMockup',
+          preview: values.footerMockupPreview,
+          spec: IMAGE_SPECS.footerMockup,
+          isFreshUpload: values.footerMockupPreview !== initialProject?.footerMockupUrl,
+        },
       ])
       const merged = { ...testimonialErrors, ...dimErrors }
 
@@ -888,13 +929,48 @@ const ProjectFormModal = ({
 
     // Step 6 – submit: re-validate everything to guard against back-navigation edits.
     const dimErrors = await validatePreviews([
-      { key: 'thumbnail', preview: values.thumbnailPreview, spec: IMAGE_SPECS.thumbnail },
-      { key: 'clientMockup', preview: values.clientMockupPreview, spec: IMAGE_SPECS.clientMockup },
-      { key: 'brandingMockup', preview: values.brandingMockupPreview, spec: IMAGE_SPECS.brandingMockup },
-      { key: 'brandingMockupSecondary', preview: values.brandingMockupSecondaryPreview, spec: IMAGE_SPECS.brandingMockupSecondary },
-      { key: 'landscapeMockup', preview: values.landscapeMockupPreview, spec: IMAGE_SPECS.landscapeMockup },
-      { key: 'websiteMockup', preview: values.websiteMockupPreview, spec: IMAGE_SPECS.websiteMockup },
-      { key: 'footerMockup', preview: values.footerMockupPreview, spec: IMAGE_SPECS.footerMockup },
+      {
+        key: 'thumbnail',
+        preview: values.thumbnailPreview,
+        spec: IMAGE_SPECS.thumbnail,
+        isFreshUpload: Boolean(values.thumbnailFile),
+      },
+      {
+        key: 'clientMockup',
+        preview: values.clientMockupPreview,
+        spec: IMAGE_SPECS.clientMockup,
+        isFreshUpload: Boolean(values.clientMockupFile),
+      },
+      {
+        key: 'brandingMockup',
+        preview: values.brandingMockupPreview,
+        spec: IMAGE_SPECS.brandingMockup,
+        isFreshUpload: Boolean(values.brandingMockupFile),
+      },
+      {
+        key: 'brandingMockupSecondary',
+        preview: values.brandingMockupSecondaryPreview,
+        spec: IMAGE_SPECS.brandingMockupSecondary,
+        isFreshUpload: Boolean(values.brandingMockupSecondaryFile),
+      },
+      {
+        key: 'landscapeMockup',
+        preview: values.landscapeMockupPreview,
+        spec: IMAGE_SPECS.landscapeMockup,
+        isFreshUpload: values.landscapeMockupPreview !== initialProject?.landscapeMockupUrl,
+      },
+      {
+        key: 'websiteMockup',
+        preview: values.websiteMockupPreview,
+        spec: IMAGE_SPECS.websiteMockup,
+        isFreshUpload: values.websiteMockupPreview !== initialProject?.websiteMockupUrl,
+      },
+      {
+        key: 'footerMockup',
+        preview: values.footerMockupPreview,
+        spec: IMAGE_SPECS.footerMockup,
+        isFreshUpload: values.footerMockupPreview !== initialProject?.footerMockupUrl,
+      },
     ])
     const allErrors: Partial<Record<FieldErrorKey, string>> = {
       ...validateDetailsStep(),

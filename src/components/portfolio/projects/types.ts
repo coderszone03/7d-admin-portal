@@ -248,11 +248,10 @@ export const validateImageDimensions = (
   })
 
 // Validates an in-memory preview (data URL or http URL) against a spec.
-// Used to re-check existing images at submit time, since edit-mode pre-loads
-// previews directly without going through the file change handler.
 export const validatePreviewDimensions = (
   preview: string,
   spec: ImageSpec,
+  enforceRatio = true,
 ): Promise<ImageValidationResult> =>
   new Promise((resolve) => {
     if (!preview) {
@@ -260,13 +259,22 @@ export const validatePreviewDimensions = (
       return
     }
     const img = new Image()
-    img.crossOrigin = 'anonymous'
+    // Do NOT set crossOrigin = 'anonymous'. Natural image dimensions (naturalWidth/naturalHeight)
+    // are readable without CORS. Setting crossOrigin causes CORS errors on remote URLs.
     img.onload = () => {
+      if (!img.naturalWidth || !img.naturalHeight) {
+        resolve({ ok: true, width: 0, height: 0 })
+        return
+      }
+      if (!enforceRatio) {
+        resolve({ ok: true, width: img.naturalWidth, height: img.naturalHeight })
+        return
+      }
       resolve(checkDimensions(img.naturalWidth, img.naturalHeight, spec, false))
     }
     img.onerror = () => {
-      // If the image can't even load, surface a clear error (e.g. CORS or 404).
-      resolve({ ok: false, error: `${spec.label} could not be read. Please re-upload the image.` })
+      // If preview is an existing URL that fails to load in new Image(), do not block existing saved projects
+      resolve({ ok: true, width: 0, height: 0 })
     }
     img.src = preview
   })
